@@ -33,6 +33,10 @@ function parseProductText(raw) {
 
   const imei = pickLine(text, /imei\s*[:\-]?\s*([0-9]{4,})/i);
 
+  let condition = '';
+  if (/\b(yangi|new|новы)/i.test(text)) condition = 'Yangi';
+  else if (/(b\s*[\/\-]\s*u|ishlatilgan|used|б\s*\/\s*у)/i.test(text)) condition = 'B/U';
+
   const priceRaw =
     pickLine(text, /(?:narxi|narx|цена|price)\s*[:\-]?\s*([\d\s.,]+)/i) ||
     pickLine(text, /([\d\s.,]+)\s*(?:\$|💵|usd)/i);
@@ -44,6 +48,7 @@ function parseProductText(raw) {
     battery,
     region,
     status,
+    condition,
     imei,
     price: price ? String(Math.round(price)) : '',
   };

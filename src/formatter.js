@@ -35,7 +35,7 @@ function formatBattery(raw) {
 }
 
 function buildCaption(product, settings) {
-  const { model, memory, battery, region, status, imei, price, system } = product;
+  const { model, memory, battery, region, status, condition, imei, price, system } = product;
   const lines = [];
 
   const fullModel = formatModel(model, system);
@@ -43,7 +43,11 @@ function buildCaption(product, settings) {
   if (memory) lines.push(`🧠 ${esc(memory)}`);
   if (battery) lines.push(`🔋 ${esc(formatBattery(battery))}`);
   if (region) lines.push(`🌏 ${esc(region)}`);
-  if (status) lines.push(`📦 ${esc(status)}`);
+  if (status) lines.push(`📦 Karobka: ${esc(status)}`);
+  if (condition) {
+    const ico = /yangi/i.test(condition) ? '✨' : '🔄';
+    lines.push(`${ico} Holati: ${esc(condition)}`);
+  }
   if (system === 'apple') lines.push('🍎 Apple iOS');
   else if (system === 'android') lines.push('🤖 Android');
 

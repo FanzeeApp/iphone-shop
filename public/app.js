@@ -4,11 +4,13 @@
     tg.ready();
     tg.expand();
     tg.setHeaderColor?.('secondary_bg_color');
+    try { tg.enableClosingConfirmation?.(); } catch {}
   }
 
   const initData = tg?.initData || '';
   let me = null;
   let settings = {};
+  let activeTab = 'post';
 
   // ---------- helpers ----------
   const $ = (sel) => document.querySelector(sel);
@@ -24,6 +26,9 @@
   function haptic(type = 'light') {
     try { tg?.HapticFeedback?.impactOccurred?.(type); } catch {}
   }
+  function hapticNotify(type) {
+    try { tg?.HapticFeedback?.notificationOccurred?.(type); } catch {}
+  }
 
   async function api(path, opts = {}) {
     const headers = { 'X-Telegram-Init-Data': initData, ...(opts.headers || {}) };
@@ -37,55 +42,30 @@
     return data;
   }
 
-  // ---------- theme toggle ----------
+  // ---------- theme ----------
   const stored = localStorage.getItem('theme');
-  if (stored === 'light' || stored === 'dark') {
-    document.documentElement.setAttribute('data-theme', stored);
-  } else if (tg?.colorScheme) {
-    document.documentElement.setAttribute('data-theme', tg.colorScheme);
-  } else {
-    document.documentElement.setAttribute('data-theme', 'dark');
-  }
+  const initialTheme = stored === 'light' || stored === 'dark'
+    ? stored
+    : (tg?.colorScheme === 'light' ? 'light' : 'dark');
+  document.documentElement.setAttribute('data-theme', initialTheme);
 
   $('#themeToggle').addEventListener('click', () => {
     const current = document.documentElement.getAttribute('data-theme') || 'dark';
     const next = current === 'dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', next);
     localStorage.setItem('theme', next);
-    try {
-      tg?.setHeaderColor?.(next === 'light' ? '#ffffff' : '#17212b');
-    } catch {}
     haptic('light');
   });
 
-  // ---------- tabs ----------
-  $$('.tab').forEach((btn) =>
-    btn.addEventListener('click', () => {
-      const tab = btn.dataset.tab;
-      $$('.tab').forEach((b) => b.classList.toggle('active', b === btn));
-      $$('.panel').forEach((p) => p.classList.toggle('active', p.dataset.panel === tab));
-      if (tab === 'settings') loadSettings();
-      if (tab === 'admins') loadAdmins();
-      haptic('light');
-      window.scrollTo(0, 0);
-    })
-  );
-
-  const params = new URLSearchParams(location.search);
-  const initialTab = params.get('tab');
-  if (initialTab) {
-    const btn = document.querySelector(`.tab[data-tab="${initialTab}"]`);
-    btn?.click();
-  }
-
-  // ---------- segmented choices ----------
+  // ---------- segmented helper ----------
   function setupSegment(container, attr, onChange) {
     const buttons = container.querySelectorAll('.seg-btn');
     buttons.forEach((b) =>
       b.addEventListener('click', (e) => {
         e.preventDefault();
+        const isAlready = b.classList.contains('active');
         buttons.forEach((x) => x.classList.toggle('active', x === b));
-        onChange(b.dataset[attr]);
+        onChange?.(b.dataset[attr], isAlready);
         haptic('light');
       })
     );
@@ -104,26 +84,53 @@
     };
   }
 
-  // OS segment (Apple / Android)
+  // ---------- segments ----------
   const osSeg = setupSegment($('#osSeg'), 'os', () => updatePreview());
   osSeg.set('apple');
-
-  // Memory segment
   const memSeg = setupSegment($('#memSeg'), 'mem', () => updatePreview());
-
-  // Status segment
   const statusSeg = setupSegment($('#statusSeg'), 'status', () => updatePreview());
+  const conditionSeg = setupSegment($('#conditionSeg'), 'condition', () => updatePreview());
 
   // ---------- form fields ----------
   const fields = ['model', 'battery', 'region', 'imei', 'price'];
-  fields.forEach((f) => $('#f_' + f).addEventListener('input', updatePreview));
+  fields.forEach((f) => {
+    const el = $('#f_' + f);
+    el.addEventListener('input', () => {
+      el.classList.remove('invalid');
+      updatePreview();
+    });
+  });
 
   function getProduct() {
     const obj = { system: osSeg.get() || 'apple' };
     fields.forEach((f) => (obj[f] = $('#f_' + f).value.trim()));
     obj.memory = memSeg.get();
     obj.status = statusSeg.get();
+    obj.condition = conditionSeg.get();
     return obj;
+  }
+
+  function validateForm() {
+    const product = getProduct();
+    let firstInvalid = null;
+    const required = [
+      ['model', $('#f_model'), 'Model'],
+      ['price', $('#f_price'), 'Narx'],
+    ];
+    for (const [key, el, label] of required) {
+      if (!product[key]) {
+        el.classList.add('invalid');
+        if (!firstInvalid) firstInvalid = label;
+      } else {
+        el.classList.remove('invalid');
+      }
+    }
+    if (!photoFiles[0]) {
+      const slot0 = document.querySelector('.slot.required');
+      slot0?.classList.add('invalid');
+      if (!firstInvalid) firstInvalid = 'Asosiy rasm';
+    }
+    return { valid: !firstInvalid, message: firstInvalid && `${firstInvalid} majburiy` };
   }
 
   // ---------- auto-parse ----------
@@ -132,28 +139,22 @@
     if (!text) return toast('Avval matnni qo\'ying', 'error');
     try {
       const parsed = await api('/parse', { method: 'POST', body: { text } });
-      // Text-based fields
       ['model', 'battery', 'region', 'imei', 'price'].forEach((f) => {
         if (parsed[f]) $('#f_' + f).value = parsed[f];
       });
-      // Memory: try to match a button
       if (parsed.memory) {
         const normalized = String(parsed.memory).toUpperCase().replace(/\s+/g, '');
-        if (!memSeg.set(normalized)) {
-          // Try without trailing GB/TB matching
-          const tries = [normalized, normalized.replace('GB', 'GB'), normalized + 'GB'];
-          tries.some((t) => memSeg.set(t));
-        }
+        memSeg.set(normalized) || memSeg.set(normalized + 'GB');
       }
-      // Status
       if (parsed.status) {
         const s = String(parsed.status).toLowerCase();
         if (s.includes('bor') || s.includes('есть') || s.includes('yes')) statusSeg.set('Bor');
         else if (s.includes('yo') || s.includes('нет') || s.includes('no')) statusSeg.set("Yo'q");
       }
+      if (parsed.condition) conditionSeg.set(parsed.condition);
       updatePreview();
       toast('To\'ldirildi', 'success');
-      haptic('medium');
+      hapticNotify('success');
     } catch (e) {
       toast(e.message, 'error');
     }
@@ -168,10 +169,10 @@
     for (let i = 0; i < PHOTO_COUNT; i++) {
       const slot = document.createElement('label');
       slot.className = 'slot' + (i === 0 ? ' required' : '');
-      const ph = i === 0 ? '+ Asosiy *' : '+ Rasm';
+      const ph = i === 0 ? '+ Asosiy' : '+ Rasm';
       slot.innerHTML = `
         <span class="placeholder">${ph}</span>
-        ${i === 0 ? '<span class="badge">1</span>' : `<span class="badge" style="background:rgba(0,0,0,0.5);color:#fff">${i + 1}</span>`}
+        <span class="badge"${i > 0 ? ' style="background:rgba(0,0,0,0.6);color:#fff"' : ''}>${i + 1}</span>
         <input type="file" accept="image/*" />
         <button type="button" class="remove">×</button>
       `;
@@ -191,8 +192,10 @@
           }
           img.src = reader.result;
           slot.classList.add('has-image');
+          slot.classList.remove('invalid');
         };
         reader.readAsDataURL(file);
+        haptic('light');
       });
       removeBtn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -229,46 +232,52 @@
   }
 
   // ---------- publish ----------
-  $('#publishBtn').addEventListener('click', async () => {
+  async function publish() {
+    const v = validateForm();
+    if (!v.valid) {
+      toast('❌ ' + v.message, 'error');
+      hapticNotify('error');
+      return;
+    }
     const product = getProduct();
-    if (!product.model) return toast('Model majburiy', 'error');
-    if (!product.price) return toast('Narx majburiy', 'error');
-    if (!photoFiles[0]) return toast('Asosiy rasm majburiy', 'error');
-
     const fd = new FormData();
     fd.append('product', JSON.stringify(product));
     photoFiles.forEach((f) => f && fd.append('photos', f));
 
+    setMainButtonLoading(true);
     const btn = $('#publishBtn');
     btn.disabled = true;
     btn.textContent = '⏳ Yuborilmoqda…';
     try {
       await api('/publish', { method: 'POST', body: fd });
       toast('✅ Kanalga yuborildi', 'success');
-      haptic('medium');
-      tg?.HapticFeedback?.notificationOccurred?.('success');
-      // Reset
+      hapticNotify('success');
+      // Reset form
       fields.forEach((f) => ($('#f_' + f).value = ''));
       $('#autoText').value = '';
       memSeg.clear();
       statusSeg.clear();
+      conditionSeg.clear();
       photoFiles.fill(null);
       renderSlots();
       setTimeout(() => updatePreview(), 200);
     } catch (e) {
       toast('❌ ' + e.message, 'error');
+      hapticNotify('error');
     } finally {
+      setMainButtonLoading(false);
       btn.disabled = false;
       btn.textContent = '🚀 Kanalga yuborish';
     }
-  });
+  }
+  $('#publishBtn').addEventListener('click', publish);
 
   // ---------- alive check ----------
   $('#aliveBtn').addEventListener('click', async () => {
     try {
       await api('/check-alive', { method: 'POST' });
       toast('✅ Kanalga "Bot ishlayapti" yuborildi', 'success');
-      haptic('medium');
+      hapticNotify('success');
     } catch (e) {
       toast('❌ ' + e.message, 'error');
     }
@@ -308,21 +317,25 @@
     }
   }
 
-  $('#saveSettingsBtn').addEventListener('click', async () => {
+  async function saveSettings() {
     const body = {};
     SETTING_KEYS.forEach((k) => {
       const el = $('#s_' + k);
       if (el) body[k] = el.value;
     });
     try {
+      setMainButtonLoading(true);
       await api('/settings', { method: 'POST', body });
       toast('✅ Saqlandi', 'success');
-      haptic('medium');
+      hapticNotify('success');
       updatePreview();
     } catch (e) {
       toast(e.message, 'error');
+    } finally {
+      setMainButtonLoading(false);
     }
-  });
+  }
+  $('#saveSettingsBtn').addEventListener('click', saveSettings);
 
   // ---------- admins ----------
   function escapeHtml(s) {
@@ -394,11 +407,57 @@
       $('#a_username').value = '';
       $('#a_name').value = '';
       toast('✅ Qo\'shildi', 'success');
+      hapticNotify('success');
       loadAdmins();
     } catch (e) {
       toast(e.message, 'error');
     }
   });
+
+  // ---------- Telegram MainButton (native primary action) ----------
+  function setMainButtonLoading(on) {
+    if (!tg?.MainButton) return;
+    if (on) tg.MainButton.showProgress?.(false);
+    else tg.MainButton.hideProgress?.();
+  }
+  function configureMainButton() {
+    if (!tg?.MainButton) return;
+    const mb = tg.MainButton;
+    mb.offClick(publish);
+    mb.offClick(saveSettings);
+    if (activeTab === 'post') {
+      mb.setText('🚀 Kanalga yuborish');
+      mb.show();
+      mb.onClick(publish);
+    } else if (activeTab === 'settings' && me?.isOwner) {
+      mb.setText('💾 Sozlamalarni saqlash');
+      mb.show();
+      mb.onClick(saveSettings);
+    } else {
+      mb.hide();
+    }
+  }
+
+  // ---------- tabs ----------
+  $$('.tab').forEach((btn) =>
+    btn.addEventListener('click', () => {
+      activeTab = btn.dataset.tab;
+      $$('.tab').forEach((b) => b.classList.toggle('active', b === btn));
+      $$('.panel').forEach((p) => p.classList.toggle('active', p.dataset.panel === activeTab));
+      if (activeTab === 'settings') loadSettings();
+      if (activeTab === 'admins') loadAdmins();
+      configureMainButton();
+      haptic('light');
+      window.scrollTo(0, 0);
+    })
+  );
+
+  const params = new URLSearchParams(location.search);
+  const initialTab = params.get('tab');
+  if (initialTab) {
+    const btn = document.querySelector(`.tab[data-tab="${initialTab}"]`);
+    btn?.click();
+  }
 
   // ---------- bootstrap ----------
   (async () => {
@@ -409,6 +468,7 @@
     try {
       me = await api('/me');
       updatePreview();
+      configureMainButton();
     } catch (e) {
       toast('Ruxsat yo\'q. Egasi sizni admin sifatida qo\'shsin.', 'error');
     }
