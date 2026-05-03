@@ -10,20 +10,27 @@
 <body>
   <div id="app">
     <nav class="tabs">
-      <button class="tab active" data-tab="post">📝 Post</button>
-      <button class="tab" data-tab="settings">⚙️ Sozlamalar</button>
-      <button class="tab" data-tab="admins">👥 Adminlar</button>
+      <button class="tab active" data-tab="post">📝 <span>Post</span></button>
+      <button class="tab" data-tab="settings">⚙️ <span>Sozlama</span></button>
+      <button class="tab" data-tab="admins">👥 <span>Admin</span></button>
     </nav>
 
-    <!-- POST TAB -->
+    <!-- ========================== POST TAB ========================== -->
     <section class="panel active" data-panel="post">
       <div class="card">
-        <label class="lbl">📋 Matnni qo'yish (avtomatik to'ldirish)</label>
+        <div class="card-head">
+          <h3>📋 Avtomatik to'ldirish</h3>
+          <p class="hint">Telefon ma'lumotini tayyor matn ko'rinishida qo'ying — maydonlar o'zi to'ladi.</p>
+        </div>
         <textarea id="autoText" rows="6" placeholder="📱 #16Pro&#10;🧠 256GB&#10;🔋 94%&#10;🌏 ZAA&#10;📦 Bor&#10;&#10;IMEI: 676510&#10;&#10;Narxi: 900$"></textarea>
-        <button class="btn ghost" id="parseBtn">📥 Avtomatik to'ldirish</button>
+        <button class="btn ghost" id="parseBtn">📥 Avto-to'ldirish</button>
       </div>
 
       <div class="card">
+        <div class="card-head">
+          <h3>📱 Telefon ma'lumoti</h3>
+        </div>
+
         <label class="lbl">Tizim</label>
         <div class="seg">
           <button class="seg-btn active" data-os="apple">🍎 Apple</button>
@@ -52,7 +59,7 @@
             <input id="f_status" placeholder="Bor" />
           </div>
           <div>
-            <label class="lbl">IMEI</label>
+            <label class="lbl">🔐 IMEI</label>
             <input id="f_imei" placeholder="676510" />
           </div>
           <div class="full">
@@ -63,88 +70,134 @@
       </div>
 
       <div class="card">
-        <label class="lbl">📷 Rasmlar (1 ta majburiy, jami 6 tagacha)</label>
-        <div id="photos" class="photos">
-          <!-- 6 photo slots injected by JS -->
+        <div class="card-head">
+          <h3>📷 Rasmlar</h3>
+          <p class="hint">1 ta majburiy, jami 6 tagacha.</p>
         </div>
-        <small class="hint">Birinchi slot — majburiy. Qolganlari ixtiyoriy.</small>
+        <div id="photos" class="photos"></div>
       </div>
 
       <div class="card">
-        <label class="lbl">👀 Ko'rinish</label>
-        <pre id="preview" class="preview">…</pre>
+        <div class="card-head">
+          <h3>👀 Ko'rinish</h3>
+          <p class="hint">Kanalga shu ko'rinishda boradi.</p>
+        </div>
+        <div id="preview" class="preview">…</div>
       </div>
 
       <div class="actions">
-        <button class="btn primary" id="publishBtn">🚀 Kanalga yuborish</button>
+        <button class="btn primary big" id="publishBtn">🚀 Kanalga yuborish</button>
         <button class="btn ghost" id="aliveBtn">✅ Bot ishlayaptimi?</button>
       </div>
     </section>
 
-    <!-- SETTINGS TAB -->
+    <!-- ========================== SETTINGS TAB ========================== -->
     <section class="panel" data-panel="settings">
       <div class="card">
-        <h3>To'lov rejasi parametrlari</h3>
+        <div class="card-head">
+          <h3>💰 To'lov rejasi</h3>
+          <p class="hint">Bosh to'lov foizi va oylik ustama foizini sozlang.</p>
+        </div>
         <div class="grid">
           <div>
             <label class="lbl">Bosh to'lov %</label>
-            <input id="s_initial_percent" type="number" step="0.1" />
+            <input id="s_initial_percent" type="number" step="0.1" placeholder="30" />
           </div>
           <div>
-            <label class="lbl">Min. bosh to'lov ($)</label>
-            <input id="s_min_initial" type="number" step="1" />
-          </div>
-          <div>
-            <label class="lbl">3 oy ustama %</label>
-            <input id="s_markup_3" type="number" step="0.1" />
-          </div>
-          <div>
-            <label class="lbl">6 oy ustama %</label>
-            <input id="s_markup_6" type="number" step="0.1" />
-          </div>
-          <div>
-            <label class="lbl">9 oy ustama %</label>
-            <input id="s_markup_9" type="number" step="0.1" />
-          </div>
-          <div>
-            <label class="lbl">12 oy ustama %</label>
-            <input id="s_markup_12" type="number" step="0.1" />
+            <label class="lbl">Oylik ustama %</label>
+            <input id="s_monthly_markup" type="number" step="0.1" placeholder="5" />
           </div>
           <div class="full">
-            <label class="lbl">Kanal ID (ixtiyoriy override)</label>
-            <input id="s_channel_id" placeholder="-1001234567890" />
-            <small class="hint">Bo'sh qoldirsangiz .env dagi qiymat ishlatiladi.</small>
+            <label class="lbl">Min. bosh to'lov ($)</label>
+            <input id="s_min_initial" type="number" step="1" placeholder="0" />
           </div>
         </div>
-        <button class="btn primary" id="saveSettingsBtn">💾 Saqlash</button>
-        <p class="hint owner-only">Faqat egasi (owner) sozlamalarni o'zgartira oladi.</p>
+        <div class="formula-box">
+          <div class="formula-title">📐 Formula:</div>
+          <div class="formula-line">Bosh to'lov = max(narx × bosh%, min)</div>
+          <div class="formula-line">Oylik = ⌈(narx − bosh) × (1 + ustama% × oy / 100) ÷ oy⌉</div>
+        </div>
       </div>
 
       <div class="card">
-        <h3>Formula</h3>
-        <p class="hint">
-          Bosh to'lov = max(narx × bosh%, min_initial)<br/>
-          Oylik = ⌈(narx − bosh) × (100 + ustama%) ÷ 100 ÷ oy⌉
+        <div class="card-head">
+          <h3>📞 Aloqa ma'lumotlari</h3>
+        </div>
+        <div class="grid">
+          <div class="full">
+            <label class="lbl">📍 Manzil</label>
+            <input id="s_address" placeholder="Toshkent, Malika bozor A22" />
+          </div>
+          <div>
+            <label class="lbl">☎️ Telefon 1</label>
+            <input id="s_phone1" placeholder="+998 95 060 99 99" />
+          </div>
+          <div>
+            <label class="lbl">☎️ Telefon 2</label>
+            <input id="s_phone2" placeholder="+998 95 860 99 99" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>🔗 Ijtimoiy linklar</h3>
+          <p class="hint">Bo'sh qoldirilsa, postda ko'rinmaydi.</p>
+        </div>
+        <div class="grid">
+          <div class="full">
+            <label class="lbl">💬 Telegram URL</label>
+            <input id="s_telegram_url" placeholder="https://t.me/your_channel" />
+          </div>
+          <div class="full">
+            <label class="lbl">📷 Instagram URL</label>
+            <input id="s_instagram_url" placeholder="https://instagram.com/your_account" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>📝 Footer matn</h3>
+          <p class="hint">Har bir post oxiriga qo'shiladigan reklama matni.</p>
+        </div>
+        <textarea id="s_footer_text" rows="6" placeholder="Texnomarket do'konimizdan ikkinchi marta xarid qilayotgan mijozlar uchun maxsus chegirmalar..."></textarea>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>📡 Kanal sozlamalari</h3>
+          <p class="hint">Bo'sh qoldirilsa, .env'dagi CHANNEL_ID ishlatiladi.</p>
+        </div>
+        <label class="lbl">Kanal ID</label>
+        <input id="s_channel_id" placeholder="-1001234567890" />
+        <p class="hint" style="margin-top:8px">
+          Kanal ID ni olish: kanaldan biror xabarni <a href="https://t.me/userinfobot" target="_blank">@userinfobot</a> ga forward qiling.
         </p>
       </div>
+
+      <button class="btn primary big" id="saveSettingsBtn">💾 Saqlash</button>
+      <p class="hint owner-only">⚠️ Faqat egasi (owner) sozlamalarni o'zgartira oladi.</p>
     </section>
 
-    <!-- ADMINS TAB -->
+    <!-- ========================== ADMINS TAB ========================== -->
     <section class="panel" data-panel="admins">
       <div class="card">
-        <h3>Yangi admin qo'shish</h3>
+        <div class="card-head">
+          <h3>➕ Yangi admin</h3>
+          <p class="hint">Adminga botda <code>/myid</code> yozdirib, ID raqamini oling.</p>
+        </div>
         <div class="grid">
           <div class="full">
             <label class="lbl">Telegram ID</label>
-            <input id="a_id" type="number" placeholder="123456789" />
-            <small class="hint">ID ni admin botda /myid yuborib olishi mumkin.</small>
+            <input id="a_id" type="number" inputmode="numeric" placeholder="123456789" />
           </div>
           <div>
-            <label class="lbl">Username (ixtiyoriy)</label>
+            <label class="lbl">Username</label>
             <input id="a_username" placeholder="@user" />
           </div>
           <div>
-            <label class="lbl">Ism (ixtiyoriy)</label>
+            <label class="lbl">Ism</label>
             <input id="a_name" placeholder="Ali" />
           </div>
         </div>
@@ -152,7 +205,9 @@
       </div>
 
       <div class="card">
-        <h3>Adminlar ro'yxati</h3>
+        <div class="card-head">
+          <h3>👥 Adminlar</h3>
+        </div>
         <div id="adminsList" class="list"></div>
       </div>
     </section>

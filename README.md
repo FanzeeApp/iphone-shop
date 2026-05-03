@@ -73,17 +73,20 @@ Endi botda chap-pastdagi **Menu** tugmasi bosilsa, Mini App ochiladi.
 
 ```
 bosh_tolov = max(narx × initial_percent / 100, min_initial)
-oylik_X    = ⌈(narx − bosh_tolov) × (100 + markup_X) / 100 / X⌉
+oylik_X    = ⌈(narx − bosh_tolov) × (1 + monthly_markup × X / 100) / X⌉
 ```
 
-Stavkalar (`Sozlamalar` tabidan) misoldagi 900$ telefon uchun standart qiymatlar:
-- `initial_percent = 50` → bosh = 450$
-- `markup_3 = 15.3` → 173$/oy
-- `markup_6 = 25.3` → 94$/oy
-- `markup_9 = 42` → 71$/oy
-- `markup_12 = 52` → 57$/oy
+Standart qiymatlar (Sozlamalar tabidan o'zgartiriladi):
+- `initial_percent = 30` (bosh to'lov foizi)
+- `monthly_markup = 5` (oylik ustama foizi)
+- `min_initial = 0`
 
-Foizlarni keyin o'zingizga moslab Sozlamalar tabidan o'zgartirasiz.
+**Misol:** 900$ telefon, 30% bosh, 5% oylik:
+- Bosh: 270$, financed: 630$
+- 3 oy: ⌈630 × 1.15 / 3⌉ = 242$/oy
+- 6 oy: ⌈630 × 1.30 / 6⌉ = 137$/oy
+- 9 oy: ⌈630 × 1.45 / 9⌉ = 102$/oy
+- 12 oy: ⌈630 × 1.60 / 12⌉ = 84$/oy
 
 ## 🚂 Railway'ga deploy qilish (eng oson yo'l)
 

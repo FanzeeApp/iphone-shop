@@ -32,13 +32,16 @@ db.exec(`
 `);
 
 const DEFAULT_SETTINGS = {
-  initial_percent: '50',
-  markup_3: '15.3',
-  markup_6: '25.3',
-  markup_9: '42',
-  markup_12: '52',
+  initial_percent: '30',
+  monthly_markup: '5',
   min_initial: '0',
   channel_id: '',
+  address: '',
+  phone1: '',
+  phone2: '',
+  telegram_url: '',
+  instagram_url: '',
+  footer_text: '',
 };
 
 const upsertSetting = db.prepare(
@@ -46,6 +49,11 @@ const upsertSetting = db.prepare(
    ON CONFLICT(key) DO NOTHING`
 );
 for (const [k, v] of Object.entries(DEFAULT_SETTINGS)) upsertSetting.run(k, v);
+
+// Migrate: remove obsolete per-period markup keys from older versions.
+db.prepare(
+  "DELETE FROM settings WHERE key IN ('markup_3','markup_6','markup_9','markup_12')"
+).run();
 
 const ownerExists = db.prepare('SELECT 1 FROM admins WHERE telegram_id = ?').get(OWNER_ID);
 if (!ownerExists) {

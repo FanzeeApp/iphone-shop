@@ -5,7 +5,8 @@ function num(v, fallback = 0) {
 
 function calculatePlan(price, settings) {
   const p = num(price, 0);
-  const initialPercent = num(settings.initial_percent, 50);
+  const initialPercent = num(settings.initial_percent, 30);
+  const monthlyMarkup = num(settings.monthly_markup, 5);
   const minInitial = num(settings.min_initial, 0);
 
   const initial = Math.max(Math.round((p * initialPercent) / 100), minInitial);
@@ -14,12 +15,15 @@ function calculatePlan(price, settings) {
   const months = [3, 6, 9, 12];
   const plans = {};
   for (const m of months) {
-    const markup = num(settings[`markup_${m}`], 0);
-    const monthly = financed === 0 ? 0 : Math.ceil((financed * (100 + markup)) / 100 / m);
-    plans[m] = monthly;
+    if (financed <= 0) {
+      plans[m] = 0;
+      continue;
+    }
+    const total = financed * (1 + (monthlyMarkup * m) / 100);
+    plans[m] = Math.ceil(total / m);
   }
 
-  return { initial, financed, plans };
+  return { initial, financed, plans, monthlyMarkup };
 }
 
 module.exports = { calculatePlan };

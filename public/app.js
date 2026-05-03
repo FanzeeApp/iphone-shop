@@ -46,6 +46,7 @@
       if (tab === 'settings') loadSettings();
       if (tab === 'admins') loadAdmins();
       haptic('light');
+      window.scrollTo(0, 0);
     })
   );
 
@@ -98,50 +99,55 @@
   const PHOTO_COUNT = 6;
   const photoFiles = new Array(PHOTO_COUNT).fill(null);
   const photosEl = $('#photos');
-  for (let i = 0; i < PHOTO_COUNT; i++) {
-    const slot = document.createElement('label');
-    slot.className = 'slot' + (i === 0 ? ' required' : '');
-    slot.innerHTML = `
-      <span class="placeholder">${i === 0 ? '+ Asosiy *' : '+ Rasm'}</span>
-      ${i === 0 ? '<span class="badge">1</span>' : ''}
-      <input type="file" accept="image/*" />
-      <button type="button" class="remove">×</button>
-    `;
-    const input = slot.querySelector('input');
-    const removeBtn = slot.querySelector('.remove');
-    input.addEventListener('change', (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      photoFiles[i] = file;
-      const reader = new FileReader();
-      reader.onload = () => {
-        slot.querySelector('.placeholder')?.remove();
-        let img = slot.querySelector('img');
-        if (!img) {
-          img = document.createElement('img');
-          slot.insertBefore(img, slot.firstChild);
+  function renderSlots() {
+    photosEl.innerHTML = '';
+    for (let i = 0; i < PHOTO_COUNT; i++) {
+      const slot = document.createElement('label');
+      slot.className = 'slot' + (i === 0 ? ' required' : '');
+      const ph = i === 0 ? '+ Asosiy *' : '+ Rasm';
+      slot.innerHTML = `
+        <span class="placeholder">${ph}</span>
+        ${i === 0 ? '<span class="badge">1</span>' : `<span class="badge" style="background:rgba(0,0,0,0.5);color:#fff">${i + 1}</span>`}
+        <input type="file" accept="image/*" />
+        <button type="button" class="remove">×</button>
+      `;
+      const input = slot.querySelector('input');
+      const removeBtn = slot.querySelector('.remove');
+      input.addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        photoFiles[i] = file;
+        const reader = new FileReader();
+        reader.onload = () => {
+          slot.querySelector('.placeholder')?.remove();
+          let img = slot.querySelector('img');
+          if (!img) {
+            img = document.createElement('img');
+            slot.insertBefore(img, slot.firstChild);
+          }
+          img.src = reader.result;
+          slot.classList.add('has-image');
+        };
+        reader.readAsDataURL(file);
+      });
+      removeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        photoFiles[i] = null;
+        input.value = '';
+        slot.querySelector('img')?.remove();
+        slot.classList.remove('has-image');
+        if (!slot.querySelector('.placeholder')) {
+          const span = document.createElement('span');
+          span.className = 'placeholder';
+          span.textContent = ph;
+          slot.insertBefore(span, slot.firstChild);
         }
-        img.src = reader.result;
-        slot.classList.add('has-image');
-      };
-      reader.readAsDataURL(file);
-    });
-    removeBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      photoFiles[i] = null;
-      input.value = '';
-      slot.querySelector('img')?.remove();
-      slot.classList.remove('has-image');
-      if (!slot.querySelector('.placeholder')) {
-        const ph = document.createElement('span');
-        ph.className = 'placeholder';
-        ph.textContent = i === 0 ? '+ Asosiy *' : '+ Rasm';
-        slot.insertBefore(ph, slot.firstChild);
-      }
-    });
-    photosEl.appendChild(slot);
+      });
+      photosEl.appendChild(slot);
+    }
   }
+  renderSlots();
 
   // ---------- preview ----------
   let previewTimer = null;
@@ -153,7 +159,9 @@
           method: 'POST',
           body: { product: getProduct() },
         });
-        $('#preview').textContent = caption || '…';
+        // The caption is HTML — render it safely as innerHTML in the preview pane
+        // (server is trusted; user input is escaped on the server).
+        $('#preview').innerHTML = caption || '<span style="color:var(--hint)">Maydonlarni to\'ldiring…</span>';
       } catch {
         // ignore
       }
@@ -173,20 +181,17 @@
 
     const btn = $('#publishBtn');
     btn.disabled = true;
-    btn.textContent = 'Yuborilmoqda…';
+    btn.textContent = '⏳ Yuborilmoqda…';
     try {
       await api('/publish', { method: 'POST', body: fd });
       toast('✅ Kanalga yuborildi', 'success');
       haptic('medium');
       tg?.HapticFeedback?.notificationOccurred?.('success');
-      // Reset form
       fields.forEach((f) => ($('#f_' + f).value = ''));
       $('#autoText').value = '';
       photoFiles.fill(null);
-      photosEl.innerHTML = '';
-      photosEl.parentElement.replaceChild(photosEl.cloneNode(true), photosEl);
-      // simpler: reload page after short delay
-      setTimeout(() => location.reload(), 800);
+      renderSlots();
+      setTimeout(() => updatePreview(), 200);
     } catch (e) {
       toast('❌ ' + e.message, 'error');
     } finally {
@@ -207,39 +212,45 @@
   });
 
   // ---------- settings ----------
+  const SETTING_KEYS = [
+    'initial_percent',
+    'monthly_markup',
+    'min_initial',
+    'address',
+    'phone1',
+    'phone2',
+    'telegram_url',
+    'instagram_url',
+    'footer_text',
+    'channel_id',
+  ];
+
   async function loadSettings() {
     try {
       settings = await api('/settings');
-      const map = {
-        s_initial_percent: 'initial_percent',
-        s_min_initial: 'min_initial',
-        s_markup_3: 'markup_3',
-        s_markup_6: 'markup_6',
-        s_markup_9: 'markup_9',
-        s_markup_12: 'markup_12',
-        s_channel_id: 'channel_id',
-      };
-      for (const [id, key] of Object.entries(map)) {
-        $('#' + id).value = settings[key] || '';
-      }
+      SETTING_KEYS.forEach((k) => {
+        const el = $('#s_' + k);
+        if (el) el.value = settings[k] || '';
+      });
       const ownerOnly = !me?.isOwner;
       $$('.owner-only').forEach((el) => el.classList.toggle('hidden', !ownerOnly));
       $('#saveSettingsBtn').disabled = ownerOnly;
+      // Disable inputs for non-owner
+      SETTING_KEYS.forEach((k) => {
+        const el = $('#s_' + k);
+        if (el) el.disabled = ownerOnly;
+      });
     } catch (e) {
       toast(e.message, 'error');
     }
   }
 
   $('#saveSettingsBtn').addEventListener('click', async () => {
-    const body = {
-      initial_percent: $('#s_initial_percent').value,
-      min_initial: $('#s_min_initial').value,
-      markup_3: $('#s_markup_3').value,
-      markup_6: $('#s_markup_6').value,
-      markup_9: $('#s_markup_9').value,
-      markup_12: $('#s_markup_12').value,
-      channel_id: $('#s_channel_id').value,
-    };
+    const body = {};
+    SETTING_KEYS.forEach((k) => {
+      const el = $('#s_' + k);
+      if (el) body[k] = el.value;
+    });
     try {
       await api('/settings', { method: 'POST', body });
       toast('✅ Saqlandi', 'success');
@@ -260,16 +271,21 @@
         const isOwner = a.telegram_id === ownerId;
         const row = document.createElement('div');
         row.className = 'row';
+        const name = a.full_name || a.username || ('ID ' + a.telegram_id);
+        const meta = [
+          a.username ? '@' + a.username : null,
+          'ID: ' + a.telegram_id,
+        ].filter(Boolean).join(' · ');
         row.innerHTML = `
           <div class="info">
-            <b>${a.full_name || a.username || a.telegram_id}</b>
-            <small>${a.username ? '@' + a.username + ' · ' : ''}ID: ${a.telegram_id}</small>
+            <b>${escapeHtml(name)}</b>
+            <small>${escapeHtml(meta)}</small>
           </div>
           ${
             isOwner
-              ? '<span class="badge">OWNER</span>'
+              ? '<span class="role-badge">OWNER</span>'
               : me?.isOwner
-                ? `<button class="rm-btn" data-id="${a.telegram_id}">🗑</button>`
+                ? `<button class="rm-btn" data-id="${a.telegram_id}" title="O'chirish">🗑</button>`
                 : ''
           }
         `;
@@ -287,11 +303,18 @@
           }
         })
       );
-      const canAdd = me?.isOwner;
-      $('#addAdminBtn').disabled = !canAdd;
+      $('#addAdminBtn').disabled = !me?.isOwner;
     } catch (e) {
       toast(e.message, 'error');
     }
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
   $('#addAdminBtn').addEventListener('click', async () => {

@@ -4,30 +4,92 @@ function fmtMoney(n) {
   return Number(n).toLocaleString('en-US');
 }
 
+function esc(v) {
+  return String(v ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function telLink(raw) {
+  if (!raw) return '';
+  const digits = String(raw).replace(/[^\d+]/g, '');
+  return `<a href="tel:${esc(digits)}">${esc(raw)}</a>`;
+}
+
 function buildCaption(product, settings) {
   const { model, memory, battery, region, status, imei, price, system } = product;
   const lines = [];
 
-  if (model) lines.push(`📱 #${String(model).replace(/^#/, '').replace(/\s+/g, '')}`);
-  if (memory) lines.push(`🧠 ${memory}`);
-  if (battery) lines.push(`🔋 ${battery}`);
-  if (region) lines.push(`🌏 ${region}`);
-  if (status) lines.push(`📦 ${status}`);
-  if (system) lines.push(`${system === 'apple' ? '🍎 Apple (iOS)' : '🤖 Android'}`);
-  lines.push('');
-  if (imei) lines.push(`IMEI: ${imei}`);
-  lines.push('');
-  if (price) lines.push(`Narxi: ${fmtMoney(price)}$ 💵`);
+  if (model) lines.push(`📱 #${esc(String(model).replace(/^#/, '').replace(/\s+/g, ''))}`);
+  if (memory) lines.push(`🧠 ${esc(memory)}`);
+  if (battery) lines.push(`🔋 ${esc(battery)}`);
+  if (region) lines.push(`🌏 ${esc(region)}`);
+  if (status) lines.push(`📦 ${esc(status)}`);
+  if (system === 'apple') lines.push('🍎 Apple iOS');
+  else if (system === 'android') lines.push('🤖 Android');
+
+  if (imei) {
+    lines.push('');
+    lines.push(`🔐 IMEI: <code>${esc(imei)}</code>`);
+  }
 
   if (price) {
+    lines.push('');
+    lines.push(`💵 <b>Narxi: ${fmtMoney(price)}$</b>`);
+
     const calc = calculatePlan(price, settings);
     lines.push('');
-    lines.push('💰 To‘lov rejasi:');
-    lines.push(`Bosh to‘lov: ${fmtMoney(calc.initial)}$`);
-    lines.push(`3 oy: ${fmtMoney(calc.plans[3])}$ dan`);
-    lines.push(`6 oy: ${fmtMoney(calc.plans[6])}$ dan`);
-    lines.push(`9 oy: ${fmtMoney(calc.plans[9])}$ dan`);
-    lines.push(`12 oy: ${fmtMoney(calc.plans[12])}$ dan`);
+    lines.push('⏰ <b>Nasiya:</b>');
+    lines.push(`▫️ Bosh to'lov: <b>${fmtMoney(calc.initial)}$</b>`);
+    lines.push(`▫️ 3 oy: <b>${fmtMoney(calc.plans[3])}$</b> dan`);
+    lines.push(`▫️ 6 oy: <b>${fmtMoney(calc.plans[6])}$</b> dan`);
+    lines.push(`▫️ 9 oy: <b>${fmtMoney(calc.plans[9])}$</b> dan`);
+    lines.push(`▫️ 12 oy: <b>${fmtMoney(calc.plans[12])}$</b> dan`);
+  }
+
+  // Footer (configurable)
+  const footerText = String(settings.footer_text || '').trim();
+  const address = String(settings.address || '').trim();
+  const phone1 = String(settings.phone1 || '').trim();
+  const phone2 = String(settings.phone2 || '').trim();
+  const tgUrl = String(settings.telegram_url || '').trim();
+  const igUrl = String(settings.instagram_url || '').trim();
+
+  const hasFooter = footerText || address || phone1 || phone2 || tgUrl || igUrl;
+  if (hasFooter) {
+    lines.push('');
+    lines.push('━━━━━━━━━━━━━━');
+  }
+
+  if (footerText) {
+    lines.push('');
+    lines.push(esc(footerText));
+  }
+
+  if (address) {
+    lines.push('');
+    lines.push(`📍 <b>Manzil:</b> ${esc(address)}`);
+  }
+
+  if (phone1 || phone2) {
+    lines.push('');
+    lines.push('📞 <b>Bog\'lanish:</b>');
+    if (phone1) lines.push(`   ${telLink(phone1)}`);
+    if (phone2) lines.push(`   ${telLink(phone2)}`);
+  }
+
+  const links = [];
+  if (igUrl) links.push(`<a href="${esc(igUrl)}">📷 Instagram</a>`);
+  if (tgUrl) links.push(`<a href="${esc(tgUrl)}">💬 Telegram</a>`);
+  if (links.length) {
+    lines.push('');
+    lines.push(links.join(' | '));
+  }
+
+  if (hasFooter) {
+    lines.push('');
+    lines.push('✅ <i>Ishonch sizdan, kafolat bizdan!</i>');
   }
 
   return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();

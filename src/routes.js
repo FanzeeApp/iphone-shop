@@ -52,7 +52,18 @@ function buildRouter(bot) {
 
   router.post('/settings', requireAdmin, express.json(), (req, res) => {
     if (!isOwner(req.tgUser.id)) return res.status(403).json({ error: 'owner_only' });
-    const allowed = ['initial_percent', 'markup_3', 'markup_6', 'markup_9', 'markup_12', 'min_initial', 'channel_id'];
+    const allowed = [
+      'initial_percent',
+      'monthly_markup',
+      'min_initial',
+      'channel_id',
+      'address',
+      'phone1',
+      'phone2',
+      'telegram_url',
+      'instagram_url',
+      'footer_text',
+    ];
     const patch = {};
     for (const k of allowed) {
       if (k in req.body) patch[k] = String(req.body[k]);
