@@ -1,3 +1,7 @@
+/* ========================================================
+   Theme variables — auto follows Telegram, manual override
+   via [data-theme="light"] / [data-theme="dark"] on <html>
+   ========================================================  */
 :root {
   --bg: var(--tg-theme-bg-color, #0e1621);
   --fg: var(--tg-theme-text-color, #f5f5f7);
@@ -9,11 +13,40 @@
   --accent-soft: rgba(46, 166, 255, 0.12);
   --border: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.14);
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   --danger: #ff4d4f;
   --success: #34c759;
   --warning: #ffb020;
   --radius: 14px;
   --radius-sm: 10px;
+}
+
+:root[data-theme="dark"] {
+  --bg: #0e1621;
+  --fg: #f5f5f7;
+  --hint: #8a98a8;
+  --card: #17212b;
+  --card-2: rgba(255, 255, 255, 0.04);
+  --accent: #2ea6ff;
+  --accent-fg: #ffffff;
+  --accent-soft: rgba(46, 166, 255, 0.12);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme="light"] {
+  --bg: #f2f3f7;
+  --fg: #1c1d1f;
+  --hint: #6b7280;
+  --card: #ffffff;
+  --card-2: rgba(0, 0, 0, 0.03);
+  --accent: #007aff;
+  --accent-fg: #ffffff;
+  --accent-soft: rgba(0, 122, 255, 0.10);
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.14);
+  --shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
 }
 
 * { box-sizing: border-box; }
@@ -27,6 +60,7 @@ html, body {
   font-size: 15px;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
+  transition: background 0.2s, color 0.2s;
 }
 
 #app {
@@ -36,6 +70,43 @@ html, body {
 }
 
 a { color: var(--accent); }
+
+/* ---------- Topbar ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0 4px;
+}
+.topbar-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.topbar-title .logo {
+  font-size: 20px;
+}
+
+.theme-toggle {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 7px 11px;
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--fg);
+  transition: 0.15s;
+  line-height: 1;
+}
+.theme-toggle:active { transform: scale(0.95); }
+.theme-toggle .theme-icon-light { display: none; }
+:root[data-theme="light"] .theme-toggle .theme-icon-dark,
+:root:not([data-theme]) .theme-toggle .theme-icon-light { /* default = dark */ }
+:root[data-theme="light"] .theme-toggle .theme-icon-dark { display: none; }
+:root[data-theme="light"] .theme-toggle .theme-icon-light { display: inline; }
 
 /* ---------- Tabs ---------- */
 .tabs {
@@ -63,8 +134,8 @@ a { color: var(--accent); }
   align-items: center;
   justify-content: center;
   gap: 6px;
+  font-family: inherit;
 }
-.tab span { font-size: 13px; }
 .tab.active {
   background: var(--accent);
   color: var(--accent-fg);
@@ -87,28 +158,25 @@ a { color: var(--accent); }
   border-radius: var(--radius);
   padding: 14px 14px 16px;
   margin-top: 12px;
+  box-shadow: var(--shadow);
 }
-.card-head {
-  margin-bottom: 12px;
-}
+.card-head { margin-bottom: 12px; }
 .card-head h3 {
   margin: 0;
   font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
-.card-head .hint {
-  margin: 4px 0 0;
-}
+.card-head .hint { margin: 4px 0 0; }
 
 .lbl {
   display: block;
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--hint);
-  margin-bottom: 5px;
+  margin-bottom: 6px;
   margin-top: 8px;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
@@ -124,11 +192,13 @@ input, textarea {
   outline: none;
   transition: border 0.15s, background 0.15s;
 }
-input::placeholder, textarea::placeholder { color: var(--hint); opacity: 0.6; }
+input::placeholder, textarea::placeholder { color: var(--hint); opacity: 0.55; }
 input:focus, textarea:focus {
   border-color: var(--accent);
   background: var(--card-2);
 }
+input[type=number]::-webkit-inner-spin-button { display: none; }
+input[type=number] { -moz-appearance: textfield; }
 textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
 
 /* ---------- Grid ---------- */
@@ -177,31 +247,42 @@ textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
 
 /* ---------- Segmented ---------- */
 .seg {
-  display: flex;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 4px;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
+.seg-2 {
+  display: flex;
+}
+.seg-2 .seg-btn { flex: 1; }
+
+.seg-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
 .seg-btn {
-  flex: 1;
   background: transparent;
   color: var(--fg);
   border: 0;
-  padding: 10px 10px;
+  padding: 10px 8px;
   border-radius: 9px;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 13.5px;
+  font-weight: 600;
   cursor: pointer;
   font-family: inherit;
   transition: 0.15s;
+  letter-spacing: 0.01em;
 }
 .seg-btn.active {
   background: var(--accent);
   color: var(--accent-fg);
   box-shadow: 0 1px 8px var(--accent-soft);
 }
+.seg-btn:not(.active):hover { background: var(--card-2); }
 
 /* ---------- Photo slots ---------- */
 .photos {
@@ -230,11 +311,7 @@ textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
 .slot.has-image { border-style: solid; border-color: var(--accent); }
 .slot img { width: 100%; height: 100%; object-fit: cover; }
 .slot input[type=file] { display: none; }
-.slot .placeholder {
-  text-align: center;
-  padding: 8px;
-  font-weight: 500;
-}
+.slot .placeholder { text-align: center; padding: 8px; font-weight: 500; }
 .slot .badge {
   position: absolute;
   top: 4px;
@@ -280,7 +357,7 @@ textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
 .preview b { font-weight: 600; }
 .preview a { color: var(--accent); text-decoration: none; }
 .preview code {
-  background: rgba(255,255,255,0.06);
+  background: var(--card-2);
   padding: 1px 6px;
   border-radius: 4px;
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
@@ -306,11 +383,7 @@ textarea { resize: vertical; min-height: 90px; line-height: 1.5; }
   font-family: inherit;
   font-weight: 600;
 }
-.formula-line {
-  color: var(--fg);
-  margin-top: 4px;
-  line-height: 1.5;
-}
+.formula-line { color: var(--fg); margin-top: 4px; line-height: 1.5; }
 
 .hint { color: var(--hint); font-size: 12px; line-height: 1.5; margin: 0; }
 

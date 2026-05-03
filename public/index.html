@@ -9,6 +9,17 @@
 </head>
 <body>
   <div id="app">
+    <header class="topbar">
+      <div class="topbar-title">
+        <span class="logo">📱</span>
+        <span>Shop Admin</span>
+      </div>
+      <button class="theme-toggle" id="themeToggle" title="Rejimni almashtirish">
+        <span class="theme-icon-dark">🌙</span>
+        <span class="theme-icon-light">☀️</span>
+      </button>
+    </header>
+
     <nav class="tabs">
       <button class="tab active" data-tab="post">📝 <span>Post</span></button>
       <button class="tab" data-tab="settings">⚙️ <span>Sozlama</span></button>
@@ -32,37 +43,52 @@
         </div>
 
         <label class="lbl">Tizim</label>
-        <div class="seg">
+        <div class="seg seg-2" id="osSeg">
           <button class="seg-btn active" data-os="apple">🍎 Apple</button>
           <button class="seg-btn" data-os="android">🤖 Android</button>
         </div>
 
         <div class="grid">
-          <div>
+          <div class="full">
             <label class="lbl">📱 Model</label>
-            <input id="f_model" placeholder="16Pro" />
+            <input id="f_model" placeholder="16Pro · 17 Air · 12 Pro Max" />
+            <small class="hint">Apple tanlansa, postda <b>iPhone</b> avtomatik qo'shiladi.</small>
           </div>
-          <div>
+
+          <div class="full">
             <label class="lbl">🧠 Xotira</label>
-            <input id="f_memory" placeholder="256GB" />
+            <div class="seg seg-grid" id="memSeg">
+              <button class="seg-btn" data-mem="64GB">64GB</button>
+              <button class="seg-btn" data-mem="128GB">128GB</button>
+              <button class="seg-btn" data-mem="256GB">256GB</button>
+              <button class="seg-btn" data-mem="512GB">512GB</button>
+              <button class="seg-btn" data-mem="1TB">1TB</button>
+              <button class="seg-btn" data-mem="2TB">2TB</button>
+            </div>
           </div>
+
           <div>
-            <label class="lbl">🔋 Batareya</label>
-            <input id="f_battery" placeholder="94%" />
+            <label class="lbl">🔋 Batareya (%)</label>
+            <input id="f_battery" type="number" inputmode="numeric" min="0" max="100" placeholder="94" />
           </div>
           <div>
             <label class="lbl">🌏 Region</label>
             <input id="f_region" placeholder="ZAA" />
           </div>
-          <div>
-            <label class="lbl">📦 Holati</label>
-            <input id="f_status" placeholder="Bor" />
+
+          <div class="full">
+            <label class="lbl">📦 Karobka (qutisi)</label>
+            <div class="seg seg-2" id="statusSeg">
+              <button class="seg-btn" data-status="Bor">✅ Bor</button>
+              <button class="seg-btn" data-status="Yo'q">❌ Yo'q</button>
+            </div>
           </div>
+
           <div>
             <label class="lbl">🔐 IMEI</label>
-            <input id="f_imei" placeholder="676510" />
+            <input id="f_imei" inputmode="numeric" placeholder="676510" />
           </div>
-          <div class="full">
+          <div>
             <label class="lbl">💵 Narxi ($)</label>
             <input id="f_price" type="number" inputmode="numeric" placeholder="900" />
           </div>
@@ -95,8 +121,7 @@
     <section class="panel" data-panel="settings">
       <div class="card">
         <div class="card-head">
-          <h3>💰 To'lov rejasi</h3>
-          <p class="hint">Bosh to'lov foizi va oylik ustama foizini sozlang.</p>
+          <h3>💰 Nasiya (bosh to'lov bilan)</h3>
         </div>
         <div class="grid">
           <div>
@@ -113,9 +138,22 @@
           </div>
         </div>
         <div class="formula-box">
-          <div class="formula-title">📐 Formula:</div>
-          <div class="formula-line">Bosh to'lov = max(narx × bosh%, min)</div>
-          <div class="formula-line">Oylik = ⌈(narx − bosh) × (1 + ustama% × oy / 100) ÷ oy⌉</div>
+          <div class="formula-title">📐 Formula</div>
+          <div class="formula-line">bosh = max(narx × bosh%, min)</div>
+          <div class="formula-line">oylik = ⌈(narx − bosh) × (1 + ustama% × oy / 100) ÷ oy⌉</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>💎 12 oy (boshlang'ichsiz)</h3>
+          <p class="hint">Misol: 1000$ + 70% = 1700$ ÷ 12 oy = 142$/oy</p>
+        </div>
+        <label class="lbl">Umumiy ustama %</label>
+        <input id="s_no_initial_markup" type="number" step="0.1" placeholder="70" />
+        <div class="formula-box">
+          <div class="formula-title">📐 Formula</div>
+          <div class="formula-line">12 oy boshlangichsiz = ⌈narx × (1 + ustama% / 100) ÷ 12⌉</div>
         </div>
       </div>
 
@@ -161,7 +199,7 @@
           <h3>📝 Footer matn</h3>
           <p class="hint">Har bir post oxiriga qo'shiladigan reklama matni.</p>
         </div>
-        <textarea id="s_footer_text" rows="6" placeholder="Texnomarket do'konimizdan ikkinchi marta xarid qilayotgan mijozlar uchun maxsus chegirmalar..."></textarea>
+        <textarea id="s_footer_text" rows="6" placeholder="Texnomarket do'konimizdan ikkinchi marotaba xarid qilayotgan mijozlar uchun maxsus chegirmalar..."></textarea>
       </div>
 
       <div class="card">
@@ -172,7 +210,7 @@
         <label class="lbl">Kanal ID</label>
         <input id="s_channel_id" placeholder="-1001234567890" />
         <p class="hint" style="margin-top:8px">
-          Kanal ID ni olish: kanaldan biror xabarni <a href="https://t.me/userinfobot" target="_blank">@userinfobot</a> ga forward qiling.
+          Olish: kanaldan biror xabarni <a href="https://t.me/userinfobot" target="_blank">@userinfobot</a> ga forward qiling.
         </p>
       </div>
 

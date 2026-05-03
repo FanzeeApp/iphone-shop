@@ -37,6 +37,27 @@
     return data;
   }
 
+  // ---------- theme toggle ----------
+  const stored = localStorage.getItem('theme');
+  if (stored === 'light' || stored === 'dark') {
+    document.documentElement.setAttribute('data-theme', stored);
+  } else if (tg?.colorScheme) {
+    document.documentElement.setAttribute('data-theme', tg.colorScheme);
+  } else {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }
+
+  $('#themeToggle').addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme') || 'dark';
+    const next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+    try {
+      tg?.setHeaderColor?.(next === 'light' ? '#ffffff' : '#17212b');
+    } catch {}
+    haptic('light');
+  });
+
   // ---------- tabs ----------
   $$('.tab').forEach((btn) =>
     btn.addEventListener('click', () => {
@@ -57,24 +78,51 @@
     btn?.click();
   }
 
-  // ---------- OS segment ----------
-  let osValue = 'apple';
-  $$('.seg-btn').forEach((b) =>
-    b.addEventListener('click', () => {
-      $$('.seg-btn').forEach((x) => x.classList.toggle('active', x === b));
-      osValue = b.dataset.os;
-      updatePreview();
-      haptic('light');
-    })
-  );
+  // ---------- segmented choices ----------
+  function setupSegment(container, attr, onChange) {
+    const buttons = container.querySelectorAll('.seg-btn');
+    buttons.forEach((b) =>
+      b.addEventListener('click', (e) => {
+        e.preventDefault();
+        buttons.forEach((x) => x.classList.toggle('active', x === b));
+        onChange(b.dataset[attr]);
+        haptic('light');
+      })
+    );
+    return {
+      get: () => container.querySelector('.seg-btn.active')?.dataset[attr] || '',
+      set: (val) => {
+        let found = false;
+        buttons.forEach((b) => {
+          const match = b.dataset[attr] === val;
+          b.classList.toggle('active', match);
+          if (match) found = true;
+        });
+        return found;
+      },
+      clear: () => buttons.forEach((b) => b.classList.remove('active')),
+    };
+  }
+
+  // OS segment (Apple / Android)
+  const osSeg = setupSegment($('#osSeg'), 'os', () => updatePreview());
+  osSeg.set('apple');
+
+  // Memory segment
+  const memSeg = setupSegment($('#memSeg'), 'mem', () => updatePreview());
+
+  // Status segment
+  const statusSeg = setupSegment($('#statusSeg'), 'status', () => updatePreview());
 
   // ---------- form fields ----------
-  const fields = ['model', 'memory', 'battery', 'region', 'status', 'imei', 'price'];
+  const fields = ['model', 'battery', 'region', 'imei', 'price'];
   fields.forEach((f) => $('#f_' + f).addEventListener('input', updatePreview));
 
   function getProduct() {
-    const obj = { system: osValue };
+    const obj = { system: osSeg.get() || 'apple' };
     fields.forEach((f) => (obj[f] = $('#f_' + f).value.trim()));
+    obj.memory = memSeg.get();
+    obj.status = statusSeg.get();
     return obj;
   }
 
@@ -84,9 +132,25 @@
     if (!text) return toast('Avval matnni qo\'ying', 'error');
     try {
       const parsed = await api('/parse', { method: 'POST', body: { text } });
-      fields.forEach((f) => {
+      // Text-based fields
+      ['model', 'battery', 'region', 'imei', 'price'].forEach((f) => {
         if (parsed[f]) $('#f_' + f).value = parsed[f];
       });
+      // Memory: try to match a button
+      if (parsed.memory) {
+        const normalized = String(parsed.memory).toUpperCase().replace(/\s+/g, '');
+        if (!memSeg.set(normalized)) {
+          // Try without trailing GB/TB matching
+          const tries = [normalized, normalized.replace('GB', 'GB'), normalized + 'GB'];
+          tries.some((t) => memSeg.set(t));
+        }
+      }
+      // Status
+      if (parsed.status) {
+        const s = String(parsed.status).toLowerCase();
+        if (s.includes('bor') || s.includes('есть') || s.includes('yes')) statusSeg.set('Bor');
+        else if (s.includes('yo') || s.includes('нет') || s.includes('no')) statusSeg.set("Yo'q");
+      }
       updatePreview();
       toast('To\'ldirildi', 'success');
       haptic('medium');
@@ -159,12 +223,8 @@
           method: 'POST',
           body: { product: getProduct() },
         });
-        // The caption is HTML — render it safely as innerHTML in the preview pane
-        // (server is trusted; user input is escaped on the server).
         $('#preview').innerHTML = caption || '<span style="color:var(--hint)">Maydonlarni to\'ldiring…</span>';
-      } catch {
-        // ignore
-      }
+      } catch { /* ignore */ }
     }, 200);
   }
 
@@ -187,8 +247,11 @@
       toast('✅ Kanalga yuborildi', 'success');
       haptic('medium');
       tg?.HapticFeedback?.notificationOccurred?.('success');
+      // Reset
       fields.forEach((f) => ($('#f_' + f).value = ''));
       $('#autoText').value = '';
+      memSeg.clear();
+      statusSeg.clear();
       photoFiles.fill(null);
       renderSlots();
       setTimeout(() => updatePreview(), 200);
@@ -215,6 +278,7 @@
   const SETTING_KEYS = [
     'initial_percent',
     'monthly_markup',
+    'no_initial_markup',
     'min_initial',
     'address',
     'phone1',
@@ -235,7 +299,6 @@
       const ownerOnly = !me?.isOwner;
       $$('.owner-only').forEach((el) => el.classList.toggle('hidden', !ownerOnly));
       $('#saveSettingsBtn').disabled = ownerOnly;
-      // Disable inputs for non-owner
       SETTING_KEYS.forEach((k) => {
         const el = $('#s_' + k);
         if (el) el.disabled = ownerOnly;
@@ -262,6 +325,14 @@
   });
 
   // ---------- admins ----------
+  function escapeHtml(s) {
+    return String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
   async function loadAdmins() {
     try {
       const { admins, ownerId } = await api('/admins');
@@ -272,10 +343,8 @@
         const row = document.createElement('div');
         row.className = 'row';
         const name = a.full_name || a.username || ('ID ' + a.telegram_id);
-        const meta = [
-          a.username ? '@' + a.username : null,
-          'ID: ' + a.telegram_id,
-        ].filter(Boolean).join(' · ');
+        const meta = [a.username ? '@' + a.username : null, 'ID: ' + a.telegram_id]
+          .filter(Boolean).join(' · ');
         row.innerHTML = `
           <div class="info">
             <b>${escapeHtml(name)}</b>
@@ -307,14 +376,6 @@
     } catch (e) {
       toast(e.message, 'error');
     }
-  }
-
-  function escapeHtml(s) {
-    return String(s ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
   }
 
   $('#addAdminBtn').addEventListener('click', async () => {

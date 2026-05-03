@@ -34,6 +34,7 @@ db.exec(`
 const DEFAULT_SETTINGS = {
   initial_percent: '30',
   monthly_markup: '5',
+  no_initial_markup: '70',
   min_initial: '0',
   channel_id: '',
   address: '',

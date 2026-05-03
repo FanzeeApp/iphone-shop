@@ -55,6 +55,7 @@ function buildRouter(bot) {
     const allowed = [
       'initial_percent',
       'monthly_markup',
+      'no_initial_markup',
       'min_initial',
       'channel_id',
       'address',

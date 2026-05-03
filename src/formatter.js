@@ -17,13 +17,31 @@ function telLink(raw) {
   return `<a href="tel:${esc(digits)}">${esc(raw)}</a>`;
 }
 
+function formatModel(model, system) {
+  const m = String(model || '').trim();
+  if (!m) return '';
+  if (system === 'apple' && !/^iphone/i.test(m)) {
+    return `iPhone ${m}`;
+  }
+  return m;
+}
+
+function formatBattery(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return '';
+  if (/%/.test(s)) return s;
+  const n = parseInt(s, 10);
+  return Number.isFinite(n) ? `${n}%` : s;
+}
+
 function buildCaption(product, settings) {
   const { model, memory, battery, region, status, imei, price, system } = product;
   const lines = [];
 
-  if (model) lines.push(`📱 #${esc(String(model).replace(/^#/, '').replace(/\s+/g, ''))}`);
+  const fullModel = formatModel(model, system);
+  if (fullModel) lines.push(`📱 <b>${esc(fullModel)}</b>`);
   if (memory) lines.push(`🧠 ${esc(memory)}`);
-  if (battery) lines.push(`🔋 ${esc(battery)}`);
+  if (battery) lines.push(`🔋 ${esc(formatBattery(battery))}`);
   if (region) lines.push(`🌏 ${esc(region)}`);
   if (status) lines.push(`📦 ${esc(status)}`);
   if (system === 'apple') lines.push('🍎 Apple iOS');
@@ -46,6 +64,11 @@ function buildCaption(product, settings) {
     lines.push(`▫️ 6 oy: <b>${fmtMoney(calc.plans[6])}$</b> dan`);
     lines.push(`▫️ 9 oy: <b>${fmtMoney(calc.plans[9])}$</b> dan`);
     lines.push(`▫️ 12 oy: <b>${fmtMoney(calc.plans[12])}$</b> dan`);
+
+    if (calc.noInitial12 > 0) {
+      lines.push('');
+      lines.push(`💎 <b>12 oy (boshlang'ichsiz): ${fmtMoney(calc.noInitial12)}$</b> dan`);
+    }
   }
 
   // Footer (configurable)

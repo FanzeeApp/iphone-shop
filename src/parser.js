@@ -15,9 +15,11 @@ function parseProductText(raw) {
     pickLine(text, /🧠\s*([^\n\r]+)/i) ||
     pickLine(text, /(\d+\s*(?:GB|TB|ГБ|ТБ))/i);
 
-  const battery =
+  const batteryRaw =
     pickLine(text, /🔋\s*([^\n\r]+)/i) ||
     pickLine(text, /(?:battery|аккум|батарея)\s*[:\-]\s*([^\n\r]+)/i);
+  const batteryMatch = batteryRaw ? batteryRaw.match(/(\d+)/) : null;
+  const battery = batteryMatch ? batteryMatch[1] : '';
 
   const region =
     pickLine(text, /🌏\s*([^\n\r]+)/i) ||
