@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>iPhone Shop Admin</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div id="app">
+    <nav class="tabs">
+      <button class="tab active" data-tab="post">📝 Post</button>
+      <button class="tab" data-tab="settings">⚙️ Sozlamalar</button>
+      <button class="tab" data-tab="admins">👥 Adminlar</button>
+    </nav>
+
+    <!-- POST TAB -->
+    <section class="panel active" data-panel="post">
+      <div class="card">
+        <label class="lbl">📋 Matnni qo'yish (avtomatik to'ldirish)</label>
+        <textarea id="autoText" rows="6" placeholder="📱 #16Pro&#10;🧠 256GB&#10;🔋 94%&#10;🌏 ZAA&#10;📦 Bor&#10;&#10;IMEI: 676510&#10;&#10;Narxi: 900$"></textarea>
+        <button class="btn ghost" id="parseBtn">📥 Avtomatik to'ldirish</button>
+      </div>
+
+      <div class="card">
+        <label class="lbl">Tizim</label>
+        <div class="seg">
+          <button class="seg-btn active" data-os="apple">🍎 Apple</button>
+          <button class="seg-btn" data-os="android">🤖 Android</button>
+        </div>
+
+        <div class="grid">
+          <div>
+            <label class="lbl">📱 Model</label>
+            <input id="f_model" placeholder="16Pro" />
+          </div>
+          <div>
+            <label class="lbl">🧠 Xotira</label>
+            <input id="f_memory" placeholder="256GB" />
+          </div>
+          <div>
+            <label class="lbl">🔋 Batareya</label>
+            <input id="f_battery" placeholder="94%" />
+          </div>
+          <div>
+            <label class="lbl">🌏 Region</label>
+            <input id="f_region" placeholder="ZAA" />
+          </div>
+          <div>
+            <label class="lbl">📦 Holati</label>
+            <input id="f_status" placeholder="Bor" />
+          </div>
+          <div>
+            <label class="lbl">IMEI</label>
+            <input id="f_imei" placeholder="676510" />
+          </div>
+          <div class="full">
+            <label class="lbl">💵 Narxi ($)</label>
+            <input id="f_price" type="number" inputmode="numeric" placeholder="900" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <label class="lbl">📷 Rasmlar (1 ta majburiy, jami 6 tagacha)</label>
+        <div id="photos" class="photos">
+          <!-- 6 photo slots injected by JS -->
+        </div>
+        <small class="hint">Birinchi slot — majburiy. Qolganlari ixtiyoriy.</small>
+      </div>
+
+      <div class="card">
+        <label class="lbl">👀 Ko'rinish</label>
+        <pre id="preview" class="preview">…</pre>
+      </div>
+
+      <div class="actions">
+        <button class="btn primary" id="publishBtn">🚀 Kanalga yuborish</button>
+        <button class="btn ghost" id="aliveBtn">✅ Bot ishlayaptimi?</button>
+      </div>
+    </section>
+
+    <!-- SETTINGS TAB -->
+    <section class="panel" data-panel="settings">
+      <div class="card">
+        <h3>To'lov rejasi parametrlari</h3>
+        <div class="grid">
+          <div>
+            <label class="lbl">Bosh to'lov %</label>
+            <input id="s_initial_percent" type="number" step="0.1" />
+          </div>
+          <div>
+            <label class="lbl">Min. bosh to'lov ($)</label>
+            <input id="s_min_initial" type="number" step="1" />
+          </div>
+          <div>
+            <label class="lbl">3 oy ustama %</label>
+            <input id="s_markup_3" type="number" step="0.1" />
+          </div>
+          <div>
+            <label class="lbl">6 oy ustama %</label>
+            <input id="s_markup_6" type="number" step="0.1" />
+          </div>
+          <div>
+            <label class="lbl">9 oy ustama %</label>
+            <input id="s_markup_9" type="number" step="0.1" />
+          </div>
+          <div>
+            <label class="lbl">12 oy ustama %</label>
+            <input id="s_markup_12" type="number" step="0.1" />
+          </div>
+          <div class="full">
+            <label class="lbl">Kanal ID (ixtiyoriy override)</label>
+            <input id="s_channel_id" placeholder="-1001234567890" />
+            <small class="hint">Bo'sh qoldirsangiz .env dagi qiymat ishlatiladi.</small>
+          </div>
+        </div>
+        <button class="btn primary" id="saveSettingsBtn">💾 Saqlash</button>
+        <p class="hint owner-only">Faqat egasi (owner) sozlamalarni o'zgartira oladi.</p>
+      </div>
+
+      <div class="card">
+        <h3>Formula</h3>
+        <p class="hint">
+          Bosh to'lov = max(narx × bosh%, min_initial)<br/>
+          Oylik = ⌈(narx − bosh) × (100 + ustama%) ÷ 100 ÷ oy⌉
+        </p>
+      </div>
+    </section>
+
+    <!-- ADMINS TAB -->
+    <section class="panel" data-panel="admins">
+      <div class="card">
+        <h3>Yangi admin qo'shish</h3>
+        <div class="grid">
+          <div class="full">
+            <label class="lbl">Telegram ID</label>
+            <input id="a_id" type="number" placeholder="123456789" />
+            <small class="hint">ID ni admin botda /myid yuborib olishi mumkin.</small>
+          </div>
+          <div>
+            <label class="lbl">Username (ixtiyoriy)</label>
+            <input id="a_username" placeholder="@user" />
+          </div>
+          <div>
+            <label class="lbl">Ism (ixtiyoriy)</label>
+            <input id="a_name" placeholder="Ali" />
+          </div>
+        </div>
+        <button class="btn primary" id="addAdminBtn">➕ Qo'shish</button>
+      </div>
+
+      <div class="card">
+        <h3>Adminlar ro'yxati</h3>
+        <div id="adminsList" class="list"></div>
+      </div>
+    </section>
+
+    <div id="toast" class="toast"></div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

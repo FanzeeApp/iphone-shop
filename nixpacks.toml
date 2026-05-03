@@ -1,0 +1,4 @@
+# better-sqlite3 native build kerak bo'lsa python va build tool'larni qo'shamiz.
+# (Aksariyat hollarda prebuilt binar yetadi, lekin xavfsizlik uchun.)
+[phases.setup]
+nixPkgs = ["nodejs_20", "python3", "gcc", "gnumake"]

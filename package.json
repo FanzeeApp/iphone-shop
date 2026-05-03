@@ -1,0 +1,21 @@
+{
+  "name": "iphone-shop-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot + Mini App for iPhone shop with installment calculator",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "grammy": "^1.30.0",
+    "multer": "^2.0.0"
+  }
+}
