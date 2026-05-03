@@ -85,11 +85,74 @@ Stavkalar (`Sozlamalar` tabidan) misoldagi 900$ telefon uchun standart qiymatlar
 
 Foizlarni keyin o'zingizga moslab Sozlamalar tabidan o'zgartirasiz.
 
-## Production
+## 🚂 Railway'ga deploy qilish (eng oson yo'l)
 
-- HTTPS sertifikatli VPS yoki Cloud platformaga (Railway, Render, Fly.io, VPS+nginx) joylash kifoya.
-- SQLite fayli `data/shop.db` da saqlanadi — backupni shu papka uchun yoqing.
-- Yuklangan rasmlar yuborishdan keyin avtomatik o'chiriladi (`data/uploads/` bo'sh turishi normal).
+### Qadam 1 — Railway hisob ochish
+1. [railway.com](https://railway.com) → **Login with GitHub** (oson)
+2. Tasdiqlovchi xat / SMS bo'lmaydi, GitHub orqali avtomatik
+
+### Qadam 2 — Loyihani ulash
+1. **New Project** → **Deploy from GitHub repo**
+2. **FanzeeApp/iphone-shop** repo'sini tanlang (avval Railway'ga GitHub access bering)
+3. Railway avtomatik ravishda `nixpacks.toml` ni topib build boshlaydi
+
+### Qadam 3 — Environment variables qo'yish
+**Variables** tabiga o'ting va quyidagilarni qo'shing:
+
+| Kalit | Qiymat |
+|---|---|
+| `BOT_TOKEN` | `8698075259:AAGfb...` (BotFather token) |
+| `CHANNEL_ID` | `-1001234567890` (kanaldan @userinfobot orqali) |
+| `OWNER_ID` | sizning Telegram ID (https://t.me/getmyid_bot) |
+| `DATA_DIR` | `/app/data` |
+
+> **`WEB_APP_URL` ni yozish shart emas** — Railway domeni ulangach, `RAILWAY_PUBLIC_DOMAIN` env'idan o'zi olib qo'yiladi.
+
+### Qadam 4 — Persistent volume (DB saqlash uchun)
+SQLite fayli reboot qilganda yo'qolib qolmasligi uchun:
+1. Service ichida **Volumes** tab
+2. **Add Volume** → Mount path: `/app/data` → Create
+3. (DATA_DIR allaqachon `/app/data` ga ko'rsatib turibdi)
+
+### Qadam 5 — Public domen olish
+1. **Settings** → **Networking** → **Generate Domain**
+2. `iphone-shop-production-xxxx.up.railway.app` kabi URL beradi
+3. Bu URL'ni nusxalang
+
+### Qadam 6 — BotFather'da Menu Button qo'yish
+1. Telegram'da [@BotFather](https://t.me/BotFather) → `/mybots` → botingiz
+2. **Bot Settings** → **Menu Button** → **Configure Menu Button**
+3. Tugma matni: `📱 Admin Panel`
+4. URL: Railway bergan domen (`https://iphone-shop-production-xxxx.up.railway.app`)
+
+### Qadam 7 — Botni kanalga admin qilish
+1. Telegram kanalingiz → kanal sozlamalari → **Administrators** → **Add Admin**
+2. Botingizni qidiring va qo'shing
+3. **Post Messages** ruxsatini bering
+
+### Qadam 8 — Sinov
+1. Botga `/start` yuboring
+2. Menyu chiqadi → **📝 Yangi post yaratish** → forma to'ladi
+3. Test post qiling — kanalga chiqishi kerak ✅
+
+### Yangilanish (kelajakda)
+Kodga o'zgartirish kiritsangiz:
+```bash
+git add . && git commit -m "update" && git push
+```
+Railway o'zi avtomatik qaytadan deploy qiladi.
+
+## Boshqa platformalar
+
+- **VPS + nginx**: HTTPS sertifikat (Let's Encrypt) + `pm2 start npm -- start`
+- **Render**: Railway'ga juda o'xshash, lekin disk uchun pulli
+- **Fly.io**: `fly launch` → `fly volumes create` → `fly deploy`
+
+## Texnik eslatma
+
+- SQLite fayli `${DATA_DIR}/shop.db` da saqlanadi (Railway'da `/app/data/shop.db`)
+- Yuklangan rasmlar yuborishdan keyin avtomatik o'chiriladi (`uploads/` bo'sh turishi normal)
+- Telegram WebApp `initData` HMAC'i har bir API request'da tekshiriladi
 
 ## Loyiha tuzilishi
 
