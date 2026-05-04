@@ -242,11 +242,16 @@
   renderSlots();
 
   // ---------- client-side image compression ----------
-  // Phone photos are typically 3-5MB. Resizing to 1920px max + JPEG 0.85
-  // brings them to ~300-800KB, which makes upload + Telegram processing 5-10x faster.
-  async function compressImage(file, maxSize = 1920, quality = 0.85) {
+  // Strategy: preserve quality at "visually lossless" level. Telegram itself
+  // re-compresses sendPhoto output to ~1920px / ~80% quality, so even our
+  // resized version comes out identical in the channel.
+  //
+  // - Skip files under 2MB entirely → ships original bytes
+  // - For larger files: max 2560px (above Telegram's 1920px ceiling) + 0.92 quality
+  //   → typical phone photo (4-6MB) becomes ~1-1.5MB, no visible difference
+  async function compressImage(file, maxSize = 2560, quality = 0.92) {
     if (!file || !file.type?.startsWith('image/')) return file;
-    if (file.size < 400 * 1024) return file; // < 400KB: not worth it
+    if (file.size < 2 * 1024 * 1024) return file; // < 2MB → original quality preserved
     try {
       const img = await new Promise((resolve, reject) => {
         const i = new Image();
@@ -255,12 +260,16 @@
         i.src = URL.createObjectURL(file);
       });
       const ratio = Math.min(maxSize / img.width, maxSize / img.height, 1);
+      // If already small enough in dimensions and only file size is large,
+      // re-encoding at high quality usually still helps; allow ratio==1.
       const w = Math.round(img.width * ratio);
       const h = Math.round(img.height * ratio);
       const canvas = document.createElement('canvas');
       canvas.width = w;
       canvas.height = h;
       const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, w, h);
       URL.revokeObjectURL(img.src);
       const blob = await new Promise((resolve) =>
