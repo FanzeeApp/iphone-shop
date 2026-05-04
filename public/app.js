@@ -47,19 +47,27 @@
   }
 
   // ---------- Telegram safe-area sync (prevents header overlap) ----------
+  // In fullscreen, Telegram overlays close/minimize controls on the top-right.
+  // contentSafeAreaInset *should* report this, but several clients return 0,
+  // so we apply a conservative floor when fullscreen is active.
   function syncSafeArea() {
     const root = document.documentElement;
     const ci = tg?.contentSafeAreaInset || {};
     const sa = tg?.safeAreaInset || {};
-    let top = ci.top != null ? ci.top : sa.top;
-    let bottom = ci.bottom != null ? ci.bottom : sa.bottom;
-    if (top == null || top < 1) {
-      // Fallback when API not available — Telegram header is ~56px when fullscreen.
-      top = tg?.isFullscreen ? 56 : (tg ? 0 : 0);
-    }
-    if (bottom == null) bottom = 0;
+    const isFs = !!tg?.isFullscreen;
+
+    const ciTop = Number.isFinite(ci.top) ? ci.top : null;
+    const saTop = Number.isFinite(sa.top) ? sa.top : null;
+    let top = (ciTop != null ? ciTop : saTop) || 0;
+    // Fullscreen floor: ~72px clears Telegram's close (X) and minimize (—) buttons.
+    if (isFs && top < 72) top = 72;
+
+    const bottom = (Number.isFinite(ci.bottom) ? ci.bottom
+                  : Number.isFinite(sa.bottom) ? sa.bottom : 0) || 0;
+
     root.style.setProperty('--tg-top', `${Math.round(top)}px`);
     root.style.setProperty('--tg-bottom', `${Math.round(bottom)}px`);
+    root.dataset.tgFullscreen = isFs ? '1' : '0';
   }
   syncSafeArea();
   try {
@@ -575,9 +583,15 @@
   }
 
   // ---------- bootstrap ----------
+  function showNoAccess() {
+    document.getElementById('app').hidden = true;
+    document.getElementById('noAccess').hidden = false;
+    try { tg?.MainButton?.hide?.(); } catch {}
+  }
+
   (async () => {
     if (!initData) {
-      toast('Mini App Telegram ichida ochilishi kerak', 'error');
+      showNoAccess();
       return;
     }
     try {
@@ -589,7 +603,7 @@
       updatePreview();
       configureMainButton();
     } catch (e) {
-      toast('Ruxsat yo\'q. Egasi sizni admin sifatida qo\'shsin.', 'error');
+      showNoAccess();
     }
   })();
 })();

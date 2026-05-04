@@ -83,6 +83,7 @@
 
 * { box-sizing: border-box; }
 *:focus { outline: none; }
+[hidden] { display: none !important; }
 
 html, body {
   margin: 0;
@@ -108,6 +109,12 @@ html, body {
     calc(14px + env(safe-area-inset-right))
     calc(120px + var(--tg-bottom) + env(safe-area-inset-bottom))
     calc(14px + env(safe-area-inset-left));
+}
+
+/* When Telegram is fullscreen, its close/minimize buttons sit top-right.
+   Reserve room so .topbar and .tabs never slide under them. */
+:root[data-tg-fullscreen="1"] #app {
+  padding-right: calc(14px + env(safe-area-inset-right) + 96px);
 }
 
 a { color: var(--accent); text-decoration: none; }
@@ -622,6 +629,55 @@ textarea { resize: vertical; min-height: 100px; line-height: 1.5; }
 
 .owner-only.hidden { display: none; }
 .hidden { display: none !important; }
+
+/* ---------- No-access screen ---------- */
+.no-access {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(8, 12, 20, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding:
+    calc(var(--tg-top) + 24px)
+    calc(24px + env(safe-area-inset-right))
+    calc(24px + var(--tg-bottom) + env(safe-area-inset-bottom))
+    calc(24px + env(safe-area-inset-left));
+  animation: fadeIn 0.3s var(--ease);
+}
+:root[data-theme="light"] .no-access { background: rgba(244, 245, 249, 0.82); }
+.no-access-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 32px 28px;
+  text-align: center;
+  max-width: 360px;
+  width: 100%;
+  box-shadow: var(--shadow-lg);
+}
+.no-access-icon {
+  font-size: 48px;
+  line-height: 1;
+  margin-bottom: 18px;
+  filter: drop-shadow(0 4px 16px var(--accent-glow));
+}
+.no-access-card h2 {
+  margin: 0 0 10px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+}
+.no-access-card p {
+  margin: 0;
+  color: var(--hint);
+  font-size: 14.5px;
+  line-height: 1.55;
+}
 
 @media (min-width: 600px) {
   .actions { display: flex; flex-direction: row; gap: 10px; }
