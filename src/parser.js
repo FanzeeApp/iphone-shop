@@ -35,7 +35,8 @@ function parseProductText(raw) {
 
   let condition = '';
   if (/\b(yangi|new|новы)/i.test(text)) condition = 'Yangi';
-  else if (/(b\s*[\/\-]\s*u|ishlatilgan|used|б\s*\/\s*у)/i.test(text)) condition = 'B/U';
+  else if (/\b(yaxshi|good|хорошо|норм)/i.test(text)) condition = 'Yaxshi';
+  else if (/\b(a.?lo|excellent|отличн)/i.test(text)) condition = "A'lo";
 
   const priceRaw =
     pickLine(text, /(?:narxi|narx|цена|price)\s*[:\-]?\s*([\d\s.,]+)/i) ||

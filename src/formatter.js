@@ -45,7 +45,7 @@ function buildCaption(product, settings) {
   if (region) lines.push(`🌏 ${esc(region)}`);
   if (status) lines.push(`📦 Karobka: ${esc(status)}`);
   if (condition) {
-    const ico = /yangi/i.test(condition) ? '✨' : '🔄';
+    const ico = /a.?lo/i.test(condition) ? '🌟' : /yaxshi/i.test(condition) ? '👍' : '✨';
     lines.push(`${ico} Holati: ${esc(condition)}`);
   }
 
@@ -69,7 +69,7 @@ function buildCaption(product, settings) {
 
     if (calc.noInitial12 > 0) {
       lines.push('');
-      lines.push(`💎 <b>12 oy (boshlang'ichsiz): ${fmtMoney(calc.noInitial12)}$</b> dan`);
+      lines.push(`💎 <b>12 oy (Boshlang'ich to'lovsiz): ${fmtMoney(calc.noInitial12)}$</b> dan`);
     }
   }
 
