@@ -88,12 +88,12 @@ html, body {
 #app {
   max-width: 720px;
   margin: 0 auto;
-  /* CRITICAL FIX: Increased top padding to avoid overlap with Telegram Close button */
+  /* Reduced top and side padding for a more "full screen" feel */
   padding:
-    calc(var(--safe-top) + 24px)
-    calc(16px + env(safe-area-inset-right))
-    calc(100px + var(--tg-bottom) + env(safe-area-inset-bottom))
-    calc(16px + env(safe-area-inset-left));
+    calc(var(--safe-top) + 6px)
+    calc(12px + env(safe-area-inset-right))
+    calc(80px + var(--tg-bottom) + env(safe-area-inset-bottom))
+    calc(12px + env(safe-area-inset-left));
 }
 
 /* When Telegram is fullscreen, its close/minimize buttons sit top-right.
@@ -109,13 +109,13 @@ a { color: var(--accent); text-decoration: none; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 0 16px;
+  padding: 4px 0 12px;
 }
 .topbar-title {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 800;
   letter-spacing: -0.03em;
 }
@@ -145,6 +145,9 @@ a { color: var(--accent); text-decoration: none; }
   border-color: var(--accent-soft);
 }
 .theme-toggle:active { transform: scale(0.92); }
+.theme-toggle .theme-icon-light { display: none; }
+:root[data-theme="light"] .theme-toggle .theme-icon-dark { display: none; }
+:root[data-theme="light"] .theme-toggle .theme-icon-light { display: inline; }
 
 /* ---------- Tabs ---------- */
 .tabs {
@@ -173,7 +176,7 @@ a { color: var(--accent); text-decoration: none; }
   background: var(--card-2);
   color: var(--fg-muted);
   border: 1px solid var(--border);
-  padding: 14px 8px;
+  padding: 12px 6px;
   border-radius: 16px;
   font-size: 14px;
   font-weight: 700;
@@ -212,8 +215,8 @@ a { color: var(--accent); text-decoration: none; }
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 20px;
-  margin-top: 16px;
+  padding: 18px 16px;
+  margin-top: 14px;
   box-shadow: var(--shadow);
   transition: all 0.3s var(--ease);
   position: relative;
@@ -223,10 +226,10 @@ a { color: var(--accent); text-decoration: none; }
   border-color: var(--border-strong);
   box-shadow: var(--shadow-lg);
 }
-.card-head { margin-bottom: 18px; }
+.card-head { margin-bottom: 16px; }
 .card-head h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 800;
   letter-spacing: -0.02em;
   display: flex;
@@ -235,14 +238,14 @@ a { color: var(--accent); text-decoration: none; }
 }
 .card-head .count-pill {
   margin-left: auto;
-  font-size: 13px;
+  font-size: 12.5px;
   background: var(--accent-soft);
   color: var(--accent);
-  padding: 4px 10px;
+  padding: 3px 9px;
   border-radius: 10px;
   font-weight: 800;
 }
-.card-head .hint { margin: 6px 0 0; }
+.card-head .hint { margin: 4px 0 0; }
 
 .lbl {
   display: block;
