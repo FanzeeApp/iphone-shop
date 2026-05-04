@@ -5,13 +5,9 @@
     tg.expand();
     try { tg.setHeaderColor?.('secondary_bg_color'); } catch {}
     try { tg.enableClosingConfirmation?.(); } catch {}
-    // Bot API 8.0+ — true fullscreen mode (immersive)
     try {
-      if (tg.isVersionAtLeast?.('8.0') && tg.requestFullscreen) {
-        tg.requestFullscreen();
-      }
+      if (tg.isVersionAtLeast?.('8.0') && tg.requestFullscreen) tg.requestFullscreen();
     } catch {}
-    // Disable vertical swipes that can dismiss the app on iOS
     try { tg.disableVerticalSwipes?.(); } catch {}
   }
 
@@ -49,6 +45,29 @@
     if (!r.ok) throw new Error(data.error || 'request_failed');
     return data;
   }
+
+  // ---------- Telegram safe-area sync (prevents header overlap) ----------
+  function syncSafeArea() {
+    const root = document.documentElement;
+    const ci = tg?.contentSafeAreaInset || {};
+    const sa = tg?.safeAreaInset || {};
+    let top = ci.top != null ? ci.top : sa.top;
+    let bottom = ci.bottom != null ? ci.bottom : sa.bottom;
+    if (top == null || top < 1) {
+      // Fallback when API not available — Telegram header is ~56px when fullscreen.
+      top = tg?.isFullscreen ? 56 : (tg ? 0 : 0);
+    }
+    if (bottom == null) bottom = 0;
+    root.style.setProperty('--tg-top', `${Math.round(top)}px`);
+    root.style.setProperty('--tg-bottom', `${Math.round(bottom)}px`);
+  }
+  syncSafeArea();
+  try {
+    tg?.onEvent?.('contentSafeAreaChanged', syncSafeArea);
+    tg?.onEvent?.('safeAreaChanged', syncSafeArea);
+    tg?.onEvent?.('fullscreenChanged', syncSafeArea);
+    tg?.onEvent?.('viewportChanged', syncSafeArea);
+  } catch {}
 
   // ---------- theme ----------
   const stored = localStorage.getItem('theme');
@@ -91,7 +110,6 @@
     };
   }
 
-  // ---------- segments ----------
   const osSeg = setupSegment($('#osSeg'), 'os', () => updatePreview());
   osSeg.set('apple');
   const memSeg = setupSegment($('#memSeg'), 'mem', () => updatePreview());
@@ -223,6 +241,39 @@
   }
   renderSlots();
 
+  // ---------- client-side image compression ----------
+  // Phone photos are typically 3-5MB. Resizing to 1920px max + JPEG 0.85
+  // brings them to ~300-800KB, which makes upload + Telegram processing 5-10x faster.
+  async function compressImage(file, maxSize = 1920, quality = 0.85) {
+    if (!file || !file.type?.startsWith('image/')) return file;
+    if (file.size < 400 * 1024) return file; // < 400KB: not worth it
+    try {
+      const img = await new Promise((resolve, reject) => {
+        const i = new Image();
+        i.onload = () => resolve(i);
+        i.onerror = reject;
+        i.src = URL.createObjectURL(file);
+      });
+      const ratio = Math.min(maxSize / img.width, maxSize / img.height, 1);
+      const w = Math.round(img.width * ratio);
+      const h = Math.round(img.height * ratio);
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(img.src);
+      const blob = await new Promise((resolve) =>
+        canvas.toBlob(resolve, 'image/jpeg', quality)
+      );
+      if (!blob || blob.size >= file.size) return file;
+      const baseName = file.name.replace(/\.\w+$/, '') || 'photo';
+      return new File([blob], baseName + '.jpg', { type: 'image/jpeg' });
+    } catch {
+      return file;
+    }
+  }
+
   // ---------- preview ----------
   let previewTimer = null;
   function updatePreview() {
@@ -239,33 +290,36 @@
   }
 
   // ---------- publish ----------
+  let publishing = false;
   async function publish() {
+    if (publishing) return;
     const v = validateForm();
     if (!v.valid) {
       toast('❌ ' + v.message, 'error');
       hapticNotify('error');
       return;
     }
-    const product = getProduct();
-    const fd = new FormData();
-    fd.append('product', JSON.stringify(product));
-    photoFiles.forEach((f) => f && fd.append('photos', f));
+    publishing = true;
+    setMainButton('🗜 Tayyorlanmoqda...', true);
 
-    setMainButtonLoading(true);
-    const btn = $('#publishBtn');
-    btn.disabled = true;
-    btn.textContent = '⏳ Yuborilmoqda…';
     try {
+      const product = getProduct();
+      // Compress in parallel
+      const filesIn = photoFiles.filter(Boolean);
+      const compressed = await Promise.all(filesIn.map((f) => compressImage(f)));
+
+      setMainButton('⏳ Yuborilmoqda...', true);
+      const fd = new FormData();
+      fd.append('product', JSON.stringify(product));
+      compressed.forEach((f) => fd.append('photos', f));
+
       await api('/publish', { method: 'POST', body: fd });
       toast('✅ Kanalga yuborildi', 'success');
       hapticNotify('success');
       // Reset form
       fields.forEach((f) => {
-        if (f === 'admin_fee') {
-          $('#f_' + f).value = settings.admin_fee || '20';
-        } else {
-          $('#f_' + f).value = '';
-        }
+        if (f === 'admin_fee') $('#f_' + f).value = settings.admin_fee || '20';
+        else $('#f_' + f).value = '';
       });
       $('#autoText').value = '';
       memSeg.clear();
@@ -273,17 +327,15 @@
       conditionSeg.clear();
       photoFiles.fill(null);
       renderSlots();
-      setTimeout(() => updatePreview(), 200);
+      setTimeout(updatePreview, 200);
     } catch (e) {
       toast('❌ ' + e.message, 'error');
       hapticNotify('error');
     } finally {
-      setMainButtonLoading(false);
-      btn.disabled = false;
-      btn.textContent = '🚀 Kanalga yuborish';
+      publishing = false;
+      setMainButton('🚀 Kanalga yuborish', false);
     }
   }
-  $('#publishBtn').addEventListener('click', publish);
 
   // ---------- alive check ----------
   $('#aliveBtn').addEventListener('click', async () => {
@@ -298,22 +350,9 @@
 
   // ---------- settings ----------
   const SETTING_KEYS = [
-    'initial_percent',
-    'monthly_markup',
-    'no_initial_markup',
-    'admin_fee',
-    'min_initial',
-    'address',
-    'address_full',
-    'phone1',
-    'phone2',
-    'phone3',
-    'working_hours',
-    'tagline',
-    'telegram_url',
-    'instagram_url',
-    'footer_text',
-    'channel_id',
+    'initial_percent', 'monthly_markup', 'no_initial_markup', 'admin_fee', 'min_initial',
+    'address', 'address_full', 'phone1', 'phone2', 'phone3', 'working_hours', 'tagline',
+    'telegram_url', 'instagram_url', 'footer_text', 'channel_id',
   ];
 
   function applySettingsToForm() {
@@ -321,7 +360,6 @@
       const el = $('#s_' + k);
       if (el) el.value = settings[k] || '';
     });
-    // Pre-fill post form with default admin_fee
     if (settings.admin_fee && !$('#f_admin_fee').value) {
       $('#f_admin_fee').value = settings.admin_fee;
     }
@@ -350,7 +388,7 @@
       if (el) body[k] = el.value;
     });
     try {
-      setMainButtonLoading(true);
+      setMainButton('💾 Saqlanmoqda...', true);
       await api('/settings', { method: 'POST', body });
       Object.assign(settings, body);
       toast('✅ Saqlandi', 'success');
@@ -359,7 +397,7 @@
     } catch (e) {
       toast(e.message, 'error');
     } finally {
-      setMainButtonLoading(false);
+      setMainButton('💾 Saqlash', false);
     }
   }
   $('#saveSettingsBtn').addEventListener('click', saveSettings);
@@ -367,10 +405,11 @@
   // ---------- admins ----------
   function escapeHtml(s) {
     return String(s ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function initial(name) {
+    return String(name || '?').trim().charAt(0).toUpperCase() || '?';
   }
 
   async function loadAdmins() {
@@ -378,15 +417,25 @@
       const { admins, ownerId } = await api('/admins');
       const list = $('#adminsList');
       list.innerHTML = '';
+      const countEl = $('#adminsCount');
+      if (countEl) countEl.textContent = admins.length;
+      if (!admins.length) {
+        const empty = document.createElement('div');
+        empty.className = 'list-empty';
+        empty.textContent = 'Hozircha admin yo\'q';
+        list.appendChild(empty);
+        return;
+      }
       admins.forEach((a) => {
         const isOwner = a.telegram_id === ownerId;
         const row = document.createElement('div');
-        row.className = 'row';
+        row.className = 'admin-row' + (isOwner ? ' is-owner' : '');
         const name = a.full_name || a.username || ('ID ' + a.telegram_id);
         const meta = [a.username ? '@' + a.username : null, 'ID: ' + a.telegram_id]
           .filter(Boolean).join(' · ');
         row.innerHTML = `
-          <div class="info">
+          <div class="admin-avatar">${escapeHtml(initial(name))}</div>
+          <div class="admin-info">
             <b>${escapeHtml(name)}</b>
             <small>${escapeHtml(meta)}</small>
           </div>
@@ -394,7 +443,7 @@
             isOwner
               ? '<span class="role-badge">OWNER</span>'
               : me?.isOwner
-                ? `<button class="rm-btn" data-id="${a.telegram_id}" title="O'chirish">🗑</button>`
+                ? `<button class="rm-btn" data-id="${a.telegram_id}" title="O'chirish">🗑 O'chirish</button>`
                 : ''
           }
         `;
@@ -405,7 +454,8 @@
           if (!confirm('Adminni o\'chirishni tasdiqlaysizmi?')) return;
           try {
             await api('/admins/' + b.dataset.id, { method: 'DELETE' });
-            toast('O\'chirildi', 'success');
+            toast('🗑 O\'chirildi', 'success');
+            hapticNotify('success');
             loadAdmins();
           } catch (e) {
             toast(e.message, 'error');
@@ -441,29 +491,58 @@
     }
   });
 
-  // ---------- Telegram MainButton ----------
-  function setMainButtonLoading(on) {
-    if (!tg?.MainButton) return;
-    if (on) tg.MainButton.showProgress?.(false);
-    else tg.MainButton.hideProgress?.();
-  }
-  function configureMainButton() {
-    if (!tg?.MainButton) return;
+  // ---------- Telegram MainButton (single source of truth for primary action) ----------
+  const hasMainButton = !!tg?.MainButton;
+  let currentClickHandler = null;
+
+  function setMainButton(text, loading) {
+    if (!hasMainButton) {
+      // Fallback to in-page button
+      const btn = $('#publishBtn');
+      btn.hidden = false;
+      btn.textContent = text;
+      btn.disabled = !!loading;
+      return;
+    }
     const mb = tg.MainButton;
-    mb.offClick(publish);
-    mb.offClick(saveSettings);
-    if (activeTab === 'post') {
-      mb.setText('🚀 Kanalga yuborish');
+    mb.setText(text);
+    if (loading) mb.showProgress?.(false);
+    else mb.hideProgress?.();
+  }
+
+  function setPrimaryAction(label, handler) {
+    if (!hasMainButton) {
+      const btn = $('#publishBtn');
+      btn.hidden = !handler;
+      if (handler) {
+        btn.textContent = label;
+        if (currentClickHandler) btn.removeEventListener('click', currentClickHandler);
+        btn.addEventListener('click', handler);
+        currentClickHandler = handler;
+      }
+      return;
+    }
+    const mb = tg.MainButton;
+    if (currentClickHandler) mb.offClick(currentClickHandler);
+    if (handler) {
+      mb.setText(label);
       mb.show();
-      mb.onClick(publish);
-    } else if (activeTab === 'settings' && me?.isOwner) {
-      mb.setText('💾 Saqlash');
-      mb.show();
-      mb.onClick(saveSettings);
+      mb.onClick(handler);
+      currentClickHandler = handler;
     } else {
       mb.hide();
+      currentClickHandler = null;
     }
   }
+
+  function configureMainButton() {
+    if (activeTab === 'post') setPrimaryAction('🚀 Kanalga yuborish', publish);
+    else if (activeTab === 'settings' && me?.isOwner) setPrimaryAction('💾 Saqlash', saveSettings);
+    else setPrimaryAction(null, null);
+  }
+
+  // Hide in-page publish button when MainButton is available
+  if (hasMainButton) $('#publishBtn').hidden = true;
 
   // ---------- tabs ----------
   $$('.tab').forEach((btn) =>
@@ -494,7 +573,6 @@
     }
     try {
       me = await api('/me');
-      // Load settings on bootstrap so admin_fee default + preview work immediately
       try {
         settings = await api('/settings');
         applySettingsToForm();

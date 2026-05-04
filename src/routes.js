@@ -16,22 +16,11 @@ const { requireAdmin } = require('./auth');
 const { calculatePlan } = require('./calculator');
 const { parseProductText } = require('./parser');
 const { buildCaption } = require('./formatter');
-const { publishToChannel, cleanupFiles, notifyChannelAlive } = require('./channel');
+const { publishToChannel, notifyChannelAlive } = require('./channel');
 
-const uploadDir = DATA_DIR
-  ? path.join(path.resolve(DATA_DIR), 'uploads')
-  : path.join(__dirname, '..', 'data', 'uploads');
-fs.mkdirSync(uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadDir),
-  filename: (_req, file, cb) => {
-    const ext = (path.extname(file.originalname) || '.jpg').toLowerCase();
-    cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`);
-  },
-});
+// In-memory storage avoids disk I/O — buffers go straight to Telegram.
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024, files: 6 },
   fileFilter: (_req, file, cb) => {
     if (!/^image\//.test(file.mimetype)) return cb(new Error('Faqat rasm fayllar qabul qilinadi'));
@@ -123,20 +112,21 @@ function buildRouter(bot) {
   });
 
   router.post('/publish', requireAdmin, upload.array('photos', 6), async (req, res) => {
-    const files = (req.files || []).map((f) => f.path);
     try {
       const product = JSON.parse(req.body.product || '{}');
-      if (files.length === 0) {
+      const photos = (req.files || []).map((f, i) => ({
+        buffer: f.buffer,
+        filename: f.originalname || `photo${i + 1}.jpg`,
+      }));
+      if (photos.length === 0) {
         return res.status(400).json({ error: 'photo_required' });
       }
-      await publishToChannel(bot, product, files);
-      recordPost(req.tgUser.id, { product, photoCount: files.length });
+      await publishToChannel(bot, product, photos);
+      recordPost(req.tgUser.id, { product, photoCount: photos.length });
       res.json({ ok: true });
     } catch (e) {
       console.error('[publish]', e);
       res.status(500).json({ error: e.description || e.message });
-    } finally {
-      cleanupFiles(files);
     }
   });
 
