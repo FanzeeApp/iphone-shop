@@ -2,7 +2,7 @@
 <html lang="uz">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <title>iPhone Shop Admin</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="stylesheet" href="/styles.css" />
@@ -14,7 +14,7 @@
         <span class="logo">📱</span>
         <span>Shop Admin</span>
       </div>
-      <button class="theme-toggle" id="themeToggle" title="Rejimni almashtirish">
+      <button class="theme-toggle" id="themeToggle" title="Rejim">
         <span class="theme-icon-dark">🌙</span>
         <span class="theme-icon-light">☀️</span>
       </button>
@@ -31,7 +31,7 @@
       <div class="card">
         <div class="card-head">
           <h3>📋 Avtomatik to'ldirish</h3>
-          <p class="hint">Telefon ma'lumotini tayyor matn ko'rinishida qo'ying — maydonlar o'zi to'ladi.</p>
+          <p class="hint">Telefon ma'lumotini matn ko'rinishida qo'ying — maydonlar o'zi to'ladi.</p>
         </div>
         <textarea id="autoText" rows="6" placeholder="📱 #16Pro&#10;🧠 256GB&#10;🔋 94%&#10;🌏 ZAA&#10;📦 Bor&#10;&#10;IMEI: 676510&#10;&#10;Narxi: 900$"></textarea>
         <button class="btn ghost" id="parseBtn">📥 Avto-to'ldirish</button>
@@ -92,13 +92,19 @@
             </div>
           </div>
 
-          <div>
+          <div class="full">
             <label class="lbl">🔐 IMEI</label>
             <input id="f_imei" inputmode="numeric" placeholder="676510" />
           </div>
+
           <div>
             <label class="lbl">💵 Narxi ($)</label>
             <input id="f_price" type="number" inputmode="numeric" placeholder="900" />
+          </div>
+          <div>
+            <label class="lbl">➕ Qo'shimcha ($)</label>
+            <input id="f_admin_fee" type="number" inputmode="numeric" placeholder="20" />
+            <small class="hint">Hisob-kitobga qo'shiladi (default 20$).</small>
           </div>
         </div>
       </div>
@@ -140,15 +146,22 @@
             <label class="lbl">Oylik ustama %</label>
             <input id="s_monthly_markup" type="number" step="0.1" placeholder="5" />
           </div>
-          <div class="full">
-            <label class="lbl">Min. bosh to'lov ($)</label>
+          <div>
+            <label class="lbl">Qo'shimcha ($)</label>
+            <input id="s_admin_fee" type="number" step="1" placeholder="20" />
+          </div>
+          <div>
+            <label class="lbl">Min. bosh ($)</label>
             <input id="s_min_initial" type="number" step="1" placeholder="0" />
           </div>
         </div>
         <div class="formula-box">
           <div class="formula-title">📐 Formula</div>
           <div class="formula-line">bosh = max(narx × bosh%, min)</div>
-          <div class="formula-line">oylik = ⌈(narx − bosh) × (1 + ustama% × oy / 100) ÷ oy⌉</div>
+          <div class="formula-line">oylik = ⌈(narx − bosh + qo'shimcha) × (1 + ustama% × oy / 100) ÷ oy⌉</div>
+          <div class="formula-example">
+            Misol: 800 − 240 + 20 = 580 → × 1.30 = 754 ÷ 6 = <b>126$</b>
+          </div>
         </div>
       </div>
 
@@ -159,55 +172,58 @@
         </div>
         <label class="lbl">Umumiy ustama %</label>
         <input id="s_no_initial_markup" type="number" step="0.1" placeholder="70" />
-        <div class="formula-box">
-          <div class="formula-title">📐 Formula</div>
-          <div class="formula-line">12 oy boshlangichsiz = ⌈narx × (1 + ustama% / 100) ÷ 12⌉</div>
-        </div>
       </div>
 
       <div class="card">
         <div class="card-head">
-          <h3>📞 Aloqa ma'lumotlari</h3>
+          <h3>📍 Manzil va aloqa</h3>
         </div>
-        <div class="grid">
+        <label class="lbl">Qisqa manzil (postda yuqorida)</label>
+        <input id="s_address" placeholder='Malika "A-YUSUF" (Korzinka tomon)' />
+
+        <label class="lbl">To'liq manzil (postda pastda)</label>
+        <input id="s_address_full" placeholder="Toshkent Malika bozoridagi..." />
+
+        <div class="grid" style="margin-top: 10px">
           <div class="full">
-            <label class="lbl">📍 Manzil</label>
-            <input id="s_address" placeholder="Toshkent, Malika bozor A22" />
-          </div>
-          <div>
             <label class="lbl">☎️ Telefon 1</label>
-            <input id="s_phone1" placeholder="+998 95 060 99 99" />
+            <input id="s_phone1" placeholder="+998 93 556 09 52" />
           </div>
-          <div>
+          <div class="full">
             <label class="lbl">☎️ Telefon 2</label>
-            <input id="s_phone2" placeholder="+998 95 860 99 99" />
+            <input id="s_phone2" placeholder="+998 93 101 79 99" />
+          </div>
+          <div class="full">
+            <label class="lbl">☎️ Telefon 3</label>
+            <input id="s_phone3" placeholder="+998 95 711 22 77" />
           </div>
         </div>
+
+        <label class="lbl">🕐 Ish vaqti</label>
+        <input id="s_working_hours" placeholder="10:00 — 22:00" />
       </div>
 
       <div class="card">
         <div class="card-head">
           <h3>🔗 Ijtimoiy linklar</h3>
-          <p class="hint">Bo'sh qoldirilsa, postda ko'rinmaydi.</p>
+          <p class="hint">URL kiritsangiz, postda tugma sifatida ko'rinadi.</p>
         </div>
-        <div class="grid">
-          <div class="full">
-            <label class="lbl">💬 Telegram URL</label>
-            <input id="s_telegram_url" placeholder="https://t.me/your_channel" />
-          </div>
-          <div class="full">
-            <label class="lbl">📷 Instagram URL</label>
-            <input id="s_instagram_url" placeholder="https://instagram.com/your_account" />
-          </div>
-        </div>
+        <label class="lbl">💬 Telegram URL</label>
+        <input id="s_telegram_url" placeholder="https://t.me/Telman_savdo" />
+
+        <label class="lbl">📷 Instagram URL</label>
+        <input id="s_instagram_url" placeholder="https://instagram.com/your_account" />
       </div>
 
       <div class="card">
         <div class="card-head">
-          <h3>📝 Footer matn</h3>
-          <p class="hint">Har bir post oxiriga qo'shiladigan reklama matni.</p>
+          <h3>📝 Reklama matnlari</h3>
         </div>
-        <textarea id="s_footer_text" rows="6" placeholder="Texnomarket do'konimizdan ikkinchi marotaba xarid qilayotgan mijozlar uchun maxsus chegirmalar..."></textarea>
+        <label class="lbl">Tagline (bir qator, kursiv)</label>
+        <input id="s_tagline" placeholder="Naqd savdo asosida ham variantlar mavjud..." />
+
+        <label class="lbl">Qo'shimcha matn (ixtiyoriy)</label>
+        <textarea id="s_footer_text" rows="4" placeholder="Qo'shimcha reklama matni..."></textarea>
       </div>
 
       <div class="card">
@@ -231,7 +247,7 @@
       <div class="card">
         <div class="card-head">
           <h3>➕ Yangi admin</h3>
-          <p class="hint">Adminga botda <code>/myid</code> yozdirib, ID raqamini oling.</p>
+          <p class="hint">Adminga botda <code>/myid</code> yozdirib ID raqamini oling.</p>
         </div>
         <div class="grid">
           <div class="full">

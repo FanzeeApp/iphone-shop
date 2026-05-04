@@ -3,8 +3,16 @@
   if (tg) {
     tg.ready();
     tg.expand();
-    tg.setHeaderColor?.('secondary_bg_color');
+    try { tg.setHeaderColor?.('secondary_bg_color'); } catch {}
     try { tg.enableClosingConfirmation?.(); } catch {}
+    // Bot API 8.0+ — true fullscreen mode (immersive)
+    try {
+      if (tg.isVersionAtLeast?.('8.0') && tg.requestFullscreen) {
+        tg.requestFullscreen();
+      }
+    } catch {}
+    // Disable vertical swipes that can dismiss the app on iOS
+    try { tg.disableVerticalSwipes?.(); } catch {}
   }
 
   const initData = tg?.initData || '';
@@ -63,9 +71,8 @@
     buttons.forEach((b) =>
       b.addEventListener('click', (e) => {
         e.preventDefault();
-        const isAlready = b.classList.contains('active');
         buttons.forEach((x) => x.classList.toggle('active', x === b));
-        onChange?.(b.dataset[attr], isAlready);
+        onChange?.(b.dataset[attr]);
         haptic('light');
       })
     );
@@ -92,7 +99,7 @@
   const conditionSeg = setupSegment($('#conditionSeg'), 'condition', () => updatePreview());
 
   // ---------- form fields ----------
-  const fields = ['model', 'battery', 'region', 'imei', 'price'];
+  const fields = ['model', 'battery', 'region', 'imei', 'price', 'admin_fee'];
   fields.forEach((f) => {
     const el = $('#f_' + f);
     el.addEventListener('input', () => {
@@ -253,7 +260,13 @@
       toast('✅ Kanalga yuborildi', 'success');
       hapticNotify('success');
       // Reset form
-      fields.forEach((f) => ($('#f_' + f).value = ''));
+      fields.forEach((f) => {
+        if (f === 'admin_fee') {
+          $('#f_' + f).value = settings.admin_fee || '20';
+        } else {
+          $('#f_' + f).value = '';
+        }
+      });
       $('#autoText').value = '';
       memSeg.clear();
       statusSeg.clear();
@@ -288,23 +301,36 @@
     'initial_percent',
     'monthly_markup',
     'no_initial_markup',
+    'admin_fee',
     'min_initial',
     'address',
+    'address_full',
     'phone1',
     'phone2',
+    'phone3',
+    'working_hours',
+    'tagline',
     'telegram_url',
     'instagram_url',
     'footer_text',
     'channel_id',
   ];
 
+  function applySettingsToForm() {
+    SETTING_KEYS.forEach((k) => {
+      const el = $('#s_' + k);
+      if (el) el.value = settings[k] || '';
+    });
+    // Pre-fill post form with default admin_fee
+    if (settings.admin_fee && !$('#f_admin_fee').value) {
+      $('#f_admin_fee').value = settings.admin_fee;
+    }
+  }
+
   async function loadSettings() {
     try {
       settings = await api('/settings');
-      SETTING_KEYS.forEach((k) => {
-        const el = $('#s_' + k);
-        if (el) el.value = settings[k] || '';
-      });
+      applySettingsToForm();
       const ownerOnly = !me?.isOwner;
       $$('.owner-only').forEach((el) => el.classList.toggle('hidden', !ownerOnly));
       $('#saveSettingsBtn').disabled = ownerOnly;
@@ -326,6 +352,7 @@
     try {
       setMainButtonLoading(true);
       await api('/settings', { method: 'POST', body });
+      Object.assign(settings, body);
       toast('✅ Saqlandi', 'success');
       hapticNotify('success');
       updatePreview();
@@ -414,7 +441,7 @@
     }
   });
 
-  // ---------- Telegram MainButton (native primary action) ----------
+  // ---------- Telegram MainButton ----------
   function setMainButtonLoading(on) {
     if (!tg?.MainButton) return;
     if (on) tg.MainButton.showProgress?.(false);
@@ -430,7 +457,7 @@
       mb.show();
       mb.onClick(publish);
     } else if (activeTab === 'settings' && me?.isOwner) {
-      mb.setText('💾 Sozlamalarni saqlash');
+      mb.setText('💾 Saqlash');
       mb.show();
       mb.onClick(saveSettings);
     } else {
@@ -467,6 +494,11 @@
     }
     try {
       me = await api('/me');
+      // Load settings on bootstrap so admin_fee default + preview work immediately
+      try {
+        settings = await api('/settings');
+        applySettingsToForm();
+      } catch {}
       updatePreview();
       configureMainButton();
     } catch (e) {

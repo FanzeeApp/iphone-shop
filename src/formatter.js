@@ -35,7 +35,7 @@ function formatBattery(raw) {
 }
 
 function buildCaption(product, settings) {
-  const { model, memory, battery, region, status, condition, imei, price, system } = product;
+  const { model, memory, battery, region, status, condition, imei, price, system, admin_fee } = product;
   const lines = [];
 
   const fullModel = formatModel(model, system);
@@ -48,8 +48,6 @@ function buildCaption(product, settings) {
     const ico = /yangi/i.test(condition) ? '✨' : '🔄';
     lines.push(`${ico} Holati: ${esc(condition)}`);
   }
-  if (system === 'apple') lines.push('🍎 Apple iOS');
-  else if (system === 'android') lines.push('🤖 Android');
 
   if (imei) {
     lines.push('');
@@ -60,7 +58,7 @@ function buildCaption(product, settings) {
     lines.push('');
     lines.push(`💵 <b>Narxi: ${fmtMoney(price)}$</b>`);
 
-    const calc = calculatePlan(price, settings);
+    const calc = calculatePlan(price, settings, { admin_fee });
     lines.push('');
     lines.push('⏰ <b>Nasiya:</b>');
     lines.push(`▫️ Bosh to'lov: <b>${fmtMoney(calc.initial)}$</b>`);
@@ -75,15 +73,22 @@ function buildCaption(product, settings) {
     }
   }
 
-  // Footer (configurable)
+  // ----- Footer -----
   const footerText = String(settings.footer_text || '').trim();
+  const tagline = String(settings.tagline || '').trim();
   const address = String(settings.address || '').trim();
-  const phone1 = String(settings.phone1 || '').trim();
-  const phone2 = String(settings.phone2 || '').trim();
+  const addressFull = String(settings.address_full || '').trim();
+  const phones = [settings.phone1, settings.phone2, settings.phone3]
+    .map((p) => String(p || '').trim())
+    .filter(Boolean);
+  const workingHours = String(settings.working_hours || '').trim();
   const tgUrl = String(settings.telegram_url || '').trim();
   const igUrl = String(settings.instagram_url || '').trim();
 
-  const hasFooter = footerText || address || phone1 || phone2 || tgUrl || igUrl;
+  const hasFooter =
+    footerText || tagline || address || addressFull ||
+    phones.length || workingHours || tgUrl || igUrl;
+
   if (hasFooter) {
     lines.push('');
     lines.push('━━━━━━━━━━━━━━');
@@ -99,11 +104,27 @@ function buildCaption(product, settings) {
     lines.push(`📍 <b>Manzil:</b> ${esc(address)}`);
   }
 
-  if (phone1 || phone2) {
+  if (phones.length) {
     lines.push('');
-    lines.push('📞 <b>Bog\'lanish:</b>');
-    if (phone1) lines.push(`   ${telLink(phone1)}`);
-    if (phone2) lines.push(`   ${telLink(phone2)}`);
+    lines.push('📞 <b>To\'liq ma\'lumot:</b>');
+    for (const phone of phones) {
+      lines.push(`   ${telLink(phone)}`);
+    }
+  }
+
+  if (tagline) {
+    lines.push('');
+    lines.push(`<i>${esc(tagline)}</i>`);
+  }
+
+  if (addressFull) {
+    lines.push('');
+    lines.push(`📍 ${esc(addressFull)}`);
+  }
+
+  if (workingHours) {
+    lines.push('');
+    lines.push(`🕐 <b>Ish vaqti:</b> ${esc(workingHours)}`);
   }
 
   const links = [];
@@ -111,12 +132,7 @@ function buildCaption(product, settings) {
   if (tgUrl) links.push(`<a href="${esc(tgUrl)}">💬 Telegram</a>`);
   if (links.length) {
     lines.push('');
-    lines.push(links.join(' | '));
-  }
-
-  if (hasFooter) {
-    lines.push('');
-    lines.push('✅ <i>Ishonch sizdan, kafolat bizdan!</i>');
+    lines.push(links.join('  |  '));
   }
 
   return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
