@@ -58,7 +58,18 @@
 
     const ciTop = Number.isFinite(ci.top) ? ci.top : null;
     const saTop = Number.isFinite(sa.top) ? sa.top : null;
+    
+    // Fallback logic: if both are missing/zero and we are likely in a mobile environment,
+    // we use a safe minimum top padding to avoid overlap with Telegram's header.
     let top = (ciTop != null ? ciTop : saTop) || 0;
+    
+    // In many Telegram clients, contentSafeAreaInset is 0 even if the header is there.
+    // If we're not in fullscreen and top is 0, we still need a small buffer.
+    if (!isFs && top === 0) {
+      // Small defensive buffer for non-fullscreen view to avoid tight spacing
+      top = 4; 
+    }
+
     // Fullscreen floor: ~72px clears Telegram's close (X) and minimize (—) buttons.
     if (isFs && top < 72) top = 72;
 
