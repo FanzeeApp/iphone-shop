@@ -96,11 +96,7 @@ html, body {
     calc(12px + env(safe-area-inset-left));
 }
 
-/* When Telegram is fullscreen, its close/minimize buttons sit top-right.
-   Reserve room so .topbar and .tabs never slide under them. */
-:root[data-tg-fullscreen="1"] #app {
-  padding-right: calc(14px + env(safe-area-inset-right) + 96px);
-}
+
 
 a { color: var(--accent); text-decoration: none; }
 
