@@ -1,8 +1,9 @@
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const express = require('express');
 const multer = require('multer');
-const { OWNER_ID, DATA_DIR } = require('./config');
+const { OWNER_ID, UPLOAD_PATH, MAX_PHOTOS, MAX_PHOTO_MB } = require('./config');
 const {
   isOwner,
   listAdmins,
@@ -18,15 +19,49 @@ const { parseProductText } = require('./parser');
 const { buildCaption } = require('./formatter');
 const { publishToChannel, notifyChannelAlive } = require('./channel');
 
-// In-memory storage avoids disk I/O — buffers go straight to Telegram.
+const MAX_PHOTO_BYTES = MAX_PHOTO_MB * 1024 * 1024;
+
+fs.mkdirSync(UPLOAD_PATH, { recursive: true });
+
+// Only the temp file's own name on disk; the name Telegram sees is the
+// uploader's original filename. Whitelisted so a client-supplied extension
+// never reaches the filesystem verbatim.
+const SAFE_EXT = /^\.[a-z0-9]{1,5}$/i;
+function tempExtension(originalname) {
+  const ext = path.extname(originalname || '');
+  return SAFE_EXT.test(ext) ? ext.toLowerCase() : '.jpg';
+}
+
+// Photos are streamed to disk rather than buffered in RAM. With
+// `memoryStorage`, six photos occupied up to ~120MB of Buffer memory per
+// publish (the multipart encoder copies each buffer), and because Node sees a
+// 24GB container it never returned that memory to the OS — resident memory sat
+// at ~475MB. Disk-backed uploads are streamed to Telegram via `InputFile`,
+// which uses `createReadStream`, so a photo is never fully held in memory.
+// multer removes its own partial files when a request aborts or hits a limit.
 const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024, files: 6 },
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, UPLOAD_PATH),
+    filename: (_req, file, cb) => {
+      const name = `${Date.now()}-${crypto.randomBytes(6).toString('hex')}`;
+      cb(null, name + tempExtension(file.originalname));
+    },
+  }),
+  limits: { fileSize: MAX_PHOTO_BYTES, files: MAX_PHOTOS },
   fileFilter: (_req, file, cb) => {
     if (!/^image\//.test(file.mimetype)) return cb(new Error('Faqat rasm fayllar qabul qilinadi'));
     cb(null, true);
   },
 });
+
+/** Best-effort removal of uploaded temp files; never throws. */
+async function discardUploads(files) {
+  await Promise.all(
+    (files || [])
+      .filter((f) => f && f.path)
+      .map((f) => fs.promises.unlink(f.path).catch(() => {}))
+  );
+}
 
 function buildRouter(bot) {
   const router = express.Router();
@@ -111,11 +146,12 @@ function buildRouter(bot) {
     }
   });
 
-  router.post('/publish', requireAdmin, upload.array('photos', 6), async (req, res) => {
+  router.post('/publish', requireAdmin, upload.array('photos', MAX_PHOTOS), async (req, res) => {
+    const files = req.files || [];
     try {
       const product = JSON.parse(req.body.product || '{}');
-      const photos = (req.files || []).map((f, i) => ({
-        buffer: f.buffer,
+      const photos = files.map((f, i) => ({
+        path: f.path,
         filename: f.originalname || `photo${i + 1}.jpg`,
       }));
       if (photos.length === 0) {
@@ -125,8 +161,13 @@ function buildRouter(bot) {
       recordPost(req.tgUser.id, { product, photoCount: photos.length });
       res.json({ ok: true });
     } catch (e) {
-      console.error('[publish]', e);
+      // Telegram API errors carry `description` and need no stack; anything
+      // else is a real bug and the stack is what makes it findable.
+      console.error('[publish]', e.description || e.stack || e.message);
       res.status(500).json({ error: e.description || e.message });
+    } finally {
+      // Uploads are scratch space: the photos now live in the channel.
+      await discardUploads(files);
     }
   });
 

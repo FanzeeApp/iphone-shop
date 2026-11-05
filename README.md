@@ -111,11 +111,20 @@ Standart qiymatlar (Sozlamalar tabidan o'zgartiriladi):
 
 > **`WEB_APP_URL` ni yozish shart emas** — Railway domeni ulangach, `RAILWAY_PUBLIC_DOMAIN` env'idan o'zi olib qo'yiladi.
 
-### Qadam 4 — Persistent volume (DB saqlash uchun)
-SQLite fayli reboot qilganda yo'qolib qolmasligi uchun:
+### Qadam 4 — Persistent volume (DB saqlash uchun) ⚠️ O'TKAZIB YUBORMANG
 1. Service ichida **Volumes** tab
 2. **Add Volume** → Mount path: `/app/data` → Create
 3. (DATA_DIR allaqachon `/app/data` ga ko'rsatib turibdi)
+
+> **Bu qadamsiz bazangiz har deploy va har restartda butunlay o'chadi.**
+> Volume bo'lmasa `/app/data` konteynerning vaqtinchalik diskiga yoziladi.
+> Yo'qoladigan narsalar: Mini App orqali qo'shilgan adminlar, o'zgartirilgan
+> foizlar (`initial_percent`, `monthly_markup`, `no_initial_markup`,
+> `admin_fee`), tahrirlangan kontakt ma'lumotlari va postlar tarixi.
+> Egasi (`OWNER_ID`) va `src/db.js` dagi standart qiymatlar qayta yaratiladi,
+> shuning uchun bot ishlashda davom etadi — sozlamalaringiz jim turib yo'qoladi.
+>
+> Tekshirish: `railway volume list` → bitta volume ko'rinishi kerak.
 
 ### Qadam 5 — Public domen olish
 1. **Settings** → **Networking** → **Generate Domain**
@@ -154,8 +163,32 @@ Railway o'zi avtomatik qaytadan deploy qiladi.
 ## Texnik eslatma
 
 - SQLite fayli `${DATA_DIR}/shop.db` da saqlanadi (Railway'da `/app/data/shop.db`)
-- Yuklangan rasmlar yuborishdan keyin avtomatik o'chiriladi (`uploads/` bo'sh turishi normal)
+- Yuklangan rasmlar `${DATA_DIR}/uploads` ga **diskka** yoziladi va kanalga
+  yuborilgandan keyin darhol o'chiriladi (`uploads/` bo'sh turishi normal)
 - Telegram WebApp `initData` HMAC'i har bir API request'da tekshiriladi
+
+### Xotira sarfi haqida
+
+Rasmlar ataylab RAM'da emas, diskda bufer qilinadi. `multer.memoryStorage()`
+bilan bitta post 6 ta rasmni to'liq RAM'ga yuklar edi (multipart koder har bir
+buferni nusxalaydi → ~120MB), va Railway konteyneri Node'ga 24GB RAM ko'rsatgani
+uchun V8 bu xotirani operatsion tizimga qaytarmas edi. Natijada bo'sh turgan
+servis 475MB da qotib qolgan edi — oyiga ~$4.65.
+
+Hozir rasmlar `InputFile(path)` orqali `createReadStream` bilan Telegram'ga
+stream qilinadi, ya'ni fayl hech qachon to'liq xotiraga yuklanmaydi.
+
+Qo'shimcha himoya sifatida Railway'da quyidagi o'zgaruvchilarni qo'yish mumkin:
+
+```
+NODE_OPTIONS = --max-old-space-size=192
+MALLOC_ARENA_MAX = 2
+```
+
+Birinchisi V8 heap'ini cheklaydi, ikkinchisi glibc allokatorining
+fragmentatsiyasini kamaytiradi. Rasm buferlari V8 heap'idan tashqarida
+(`external` xotira) yashaganligi uchun bu o'zgaruvchilar yolg'iz o'zi
+yetarli emas — asosiy yechim yuqoridagi stream'ga o'tish.
 
 ## Loyiha tuzilishi
 

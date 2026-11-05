@@ -1,13 +1,17 @@
 const path = require('path');
 const express = require('express');
-const { PORT } = require('./config');
+const { PORT, MAX_PHOTO_MB } = require('./config');
 const { bot } = require('./bot');
 const { buildRouter } = require('./routes');
 
 const app = express();
 
+// `no-cache` means "revalidate before use", not "don't store": paired with the
+// ETags express sends by default, a repeat open costs a conditional request and
+// gets a 304 rather than the body. That is what we want for a Mini App, where a
+// deploy must be visible immediately. The previous `maxAge: '1h'` here was dead
+// configuration — `setHeaders` overwrote the Cache-Control it produced.
 app.use(express.static(path.join(__dirname, '..', 'public'), {
-  maxAge: '1h',
   setHeaders: (res) => {
     res.setHeader('Cache-Control', 'no-cache');
   },
@@ -18,8 +22,25 @@ app.use('/api', buildRouter(bot));
 app.get('/healthz', (_req, res) => res.json({ ok: true }));
 
 app.use((err, _req, res, _next) => {
-  console.error('[server]', err);
-  res.status(500).json({ error: err.message || 'server_error' });
+  // A phone losing signal mid-upload is routine, not a defect: log one line
+  // instead of a stack trace. These were the bulk of this service's error logs.
+  if (err && (err.message === 'Request aborted' || err.code === 'ECONNABORTED')) {
+    console.warn('[server] upload aborted by client');
+  } else if (err && err.code === 'LIMIT_FILE_SIZE') {
+    console.warn('[server] photo over size limit rejected');
+  } else {
+    console.error('[server]', err);
+  }
+
+  // The socket is already gone on an abort, and a response may be part-sent.
+  if (res.headersSent) return;
+
+  if (err && err.code === 'LIMIT_FILE_SIZE') {
+    return res
+      .status(413)
+      .json({ error: `Rasm hajmi juda katta (maksimum ${MAX_PHOTO_MB}MB).` });
+  }
+  res.status(500).json({ error: (err && err.message) || 'server_error' });
 });
 
 app.listen(PORT, () => {

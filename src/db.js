@@ -1,13 +1,11 @@
 const path = require('path');
 const fs = require('fs');
 const Database = require('better-sqlite3');
-const { OWNER_ID, DATA_DIR } = require('./config');
+const { OWNER_ID, DATA_PATH } = require('./config');
 
-const dataDir = DATA_DIR ? path.resolve(DATA_DIR) : path.join(__dirname, '..', 'data');
-fs.mkdirSync(dataDir, { recursive: true });
-fs.mkdirSync(path.join(dataDir, 'uploads'), { recursive: true });
+fs.mkdirSync(DATA_PATH, { recursive: true });
 
-const db = new Database(path.join(dataDir, 'shop.db'));
+const db = new Database(path.join(DATA_PATH, 'shop.db'));
 db.pragma('journal_mode = WAL');
 
 db.exec(`

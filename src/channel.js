@@ -10,14 +10,16 @@ const TG_CAPTION_LIMIT = 1024;
  *
  * @param {object} bot grammY bot instance
  * @param {object} product product fields (model, memory, ..., admin_fee)
- * @param {Array<{buffer: Buffer, filename: string}>} photos in-memory photos
+ * @param {Array<{path: string, filename: string}>} photos paths to uploaded
+ *   photos on disk. grammY's `InputFile` streams these via `createReadStream`,
+ *   so a photo is never fully loaded into memory.
  */
 async function publishToChannel(bot, product, photos) {
   const settings = getSettings();
   const channelId = settings.channel_id || CHANNEL_ID;
   const fullCaption = buildCaption(product, settings);
 
-  const items = (photos || []).filter((p) => p && p.buffer && p.buffer.length);
+  const items = (photos || []).filter((p) => p && p.path);
   if (items.length === 0) {
     throw new Error('Kamida bitta rasm yuklash shart.');
   }
@@ -40,14 +42,14 @@ async function publishToChannel(bot, product, photos) {
     : fullCaption;
 
   if (items.length === 1) {
-    await bot.api.sendPhoto(channelId, new InputFile(items[0].buffer, items[0].filename), {
+    await bot.api.sendPhoto(channelId, new InputFile(items[0].path, items[0].filename), {
       caption: photoCaption,
       parse_mode: 'HTML',
     });
   } else {
     const media = items.slice(0, 10).map((item, i) => ({
       type: 'photo',
-      media: new InputFile(item.buffer, item.filename),
+      media: new InputFile(item.path, item.filename),
       ...(i === 0 ? { caption: photoCaption, parse_mode: 'HTML' } : {}),
     }));
     await bot.api.sendMediaGroup(channelId, media);
