@@ -261,26 +261,34 @@
   renderSlots();
 
   // ---------- client-side image compression ----------
-  // Strategy: preserve quality at "visually lossless" level. Telegram itself
-  // re-compresses sendPhoto output to ~1920px / ~80% quality, so even our
-  // resized version comes out identical in the channel.
+  // Telegram re-compresses sendPhoto output to ~1920px / ~80% quality, so every
+  // byte we send above that ceiling is thrown away server-side. It still costs
+  // the admin's mobile data and the server's memory on the way through.
   //
-  // - Skip files under 2MB entirely → ships original bytes
-  // - For larger files: max 2560px (above Telegram's 1920px ceiling) + 0.92 quality
-  //   → typical phone photo (4-6MB) becomes ~1-1.5MB, no visible difference
-  async function compressImage(file, maxSize = 2560, quality = 0.92) {
+  // The previous settings (2560px / 0.92, plus an "under 2MB ships untouched"
+  // shortcut) let a six-photo post upload ~11MB from a phone, which is why
+  // uploads kept aborting mid-request and leaving buffers behind on the server.
+  const MAX_EDGE = 1920;
+  const JPEG_QUALITY = 0.82;
+  // Below this a re-encode saves little and risks looking worse than the original.
+  const SKIP_UNDER_BYTES = 300 * 1024;
+
+  async function compressImage(file, maxSize = MAX_EDGE, quality = JPEG_QUALITY) {
     if (!file || !file.type?.startsWith('image/')) return file;
-    if (file.size < 2 * 1024 * 1024) return file; // < 2MB → original quality preserved
+    if (file.size < SKIP_UNDER_BYTES) return file;
+    let objectUrl = null;
     try {
+      objectUrl = URL.createObjectURL(file);
+      const url = objectUrl;
       const img = await new Promise((resolve, reject) => {
         const i = new Image();
         i.onload = () => resolve(i);
         i.onerror = reject;
-        i.src = URL.createObjectURL(file);
+        i.src = url;
       });
       const ratio = Math.min(maxSize / img.width, maxSize / img.height, 1);
-      // If already small enough in dimensions and only file size is large,
-      // re-encoding at high quality usually still helps; allow ratio==1.
+      // Dimensions may already be within the ceiling while the file is still
+      // heavy, so re-encode even when ratio === 1.
       const w = Math.round(img.width * ratio);
       const h = Math.round(img.height * ratio);
       const canvas = document.createElement('canvas');
@@ -290,15 +298,19 @@
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, w, h);
-      URL.revokeObjectURL(img.src);
       const blob = await new Promise((resolve) =>
         canvas.toBlob(resolve, 'image/jpeg', quality)
       );
+      // Release the decoded bitmap before the next photo is processed.
+      canvas.width = 0;
+      canvas.height = 0;
       if (!blob || blob.size >= file.size) return file;
       const baseName = file.name.replace(/\.\w+$/, '') || 'photo';
       return new File([blob], baseName + '.jpg', { type: 'image/jpeg' });
     } catch {
       return file;
+    } finally {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
     }
   }
 
@@ -332,9 +344,14 @@
 
     try {
       const product = getProduct();
-      // Compress in parallel
+      // One at a time, not Promise.all: decoding six full-resolution photos
+      // simultaneously spikes WebView memory on low-end phones and is itself a
+      // cause of killed uploads.
       const filesIn = photoFiles.filter(Boolean);
-      const compressed = await Promise.all(filesIn.map((f) => compressImage(f)));
+      const compressed = [];
+      for (const f of filesIn) {
+        compressed.push(await compressImage(f));
+      }
 
       setMainButton('⏳ Yuborilmoqda...', true);
       const fd = new FormData();
