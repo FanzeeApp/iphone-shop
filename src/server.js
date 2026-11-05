@@ -1,6 +1,6 @@
 const path = require('path');
 const express = require('express');
-const { PORT } = require('./config');
+const { PORT, MAX_PHOTO_MB } = require('./config');
 const { bot } = require('./bot');
 const { buildRouter } = require('./routes');
 
@@ -36,7 +36,9 @@ app.use((err, _req, res, _next) => {
   if (res.headersSent) return;
 
   if (err && err.code === 'LIMIT_FILE_SIZE') {
-    return res.status(413).json({ error: 'Rasm hajmi juda katta (maksimum 3MB).' });
+    return res
+      .status(413)
+      .json({ error: `Rasm hajmi juda katta (maksimum ${MAX_PHOTO_MB}MB).` });
   }
   res.status(500).json({ error: (err && err.message) || 'server_error' });
 });

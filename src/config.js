@@ -29,4 +29,10 @@ module.exports = {
   PORT: Number(process.env.PORT || 3000),
   DATA_PATH: dataPath,
   UPLOAD_PATH: path.join(dataPath, 'uploads'),
+
+  MAX_PHOTOS: 6,
+  // Telegram re-compresses sendPhoto output to ~1920px, so bytes beyond this
+  // are discarded server-side after costing upload bandwidth and memory.
+  // Shared so the upload limit and the error message shown cannot disagree.
+  MAX_PHOTO_MB: 3,
 };

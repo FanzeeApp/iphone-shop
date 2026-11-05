@@ -3,7 +3,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const express = require('express');
 const multer = require('multer');
-const { OWNER_ID, UPLOAD_PATH } = require('./config');
+const { OWNER_ID, UPLOAD_PATH, MAX_PHOTOS, MAX_PHOTO_MB } = require('./config');
 const {
   isOwner,
   listAdmins,
@@ -19,10 +19,7 @@ const { parseProductText } = require('./parser');
 const { buildCaption } = require('./formatter');
 const { publishToChannel, notifyChannelAlive } = require('./channel');
 
-const MAX_PHOTOS = 6;
-// Telegram re-compresses sendPhoto output to ~1920px anyway, so anything above
-// ~3MB per photo is bandwidth and memory we never get back.
-const MAX_PHOTO_BYTES = 3 * 1024 * 1024;
+const MAX_PHOTO_BYTES = MAX_PHOTO_MB * 1024 * 1024;
 
 fs.mkdirSync(UPLOAD_PATH, { recursive: true });
 
